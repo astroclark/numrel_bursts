@@ -15,12 +15,13 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
-nrburst_matches.py
+nrburst_match.py
 
 Compute matches between burst reconstruction and NR waveforms
 """
 
 import sys, os
+import os.path
 import subprocess
 import cPickle as pickle
 
@@ -34,11 +35,13 @@ from pylal import spawaveform
 import nrburst_utils as nrbu
 
 __author__ = "James Clark <james.clark@ligo.org>"
-#git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
-#__version__ = "git id %s" % git_version_id
-
 gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
 __date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
+
+# Get the current git version
+git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
+        cwd=os.path.dirname(sys.argv[0])).strip()
+__version__ = "git id %s" % git_version_id
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -194,13 +197,9 @@ for w, wave in enumerate(catalog.SIComplexTimeSeries):
 
 filename=opts.user_tag+'_'+config.algorithm+'_'+gpsnow+'.pickle'
 
-#np.savez(filename, matches=matches, masses=masses)
-
 # Dump results and configuration to pickle
-pickle.dump([matches, masses, config, simulations, __author__,
+pickle.dump([matches, masses, config, simulations, __author__, __version__,
     __date__], open(filename, "wb"))
-#pickle.dump([matches, masses, config, simulations, __author__, __version__,
-#    __date__], open(filename, "wb"))
 
 
 
