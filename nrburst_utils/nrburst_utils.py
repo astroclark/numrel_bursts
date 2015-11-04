@@ -235,6 +235,9 @@ def mismatch(target_total_mass, init_total_mass, mass_bounds, tmplt_wave_data,
     Compute mismatch (1-match) between the tmplt wave and the event wave, given
     the total mass.  Uses event_wave and psd which are defined globally in the
     calling script.
+
+    XXX: Planned revision - pass in a params dictionary for the pycbc NR
+    waveform infrastructure and generate the wavefrom from that.
     """
     min_mass, max_mass = mass_bounds
 
@@ -595,12 +598,6 @@ class waveform_catalog:
     def load_wavedata(self):
         """
         Load the waveform data pointed to by the simulation_details object
-
-        NOTE: Currently set up to compute amplitude and phase timeseries from
-        the resampled complex time series.  This is probably the wrong way
-        round; the amp/phase representation is smoother and might be a more
-        sensible thing to resample.  If weirdness is encountered, I recommend
-        investigating that option as a resolution.
         """
 
         # Load the waveform data into lists for time, plus and cross.  When all
@@ -648,10 +645,6 @@ class waveform_catalog:
         NR_nsamples = self.NR_datalen / self.NR_deltaT
         self.NRComplexTimeSeries = np.zeros(shape=(len(plus_data_resampled),
             NR_nsamples), dtype=complex)
-        self.NRAmpTimeSeries = np.zeros(shape=(len(plus_data_resampled),
-            NR_nsamples))
-        self.NRPhaseTimeSeries = np.zeros(shape=(len(plus_data_resampled),
-            NR_nsamples))
 
         # Alignment & Normalisation
         align_idx = 0.5*NR_nsamples
@@ -660,8 +653,6 @@ class waveform_catalog:
         trunc_len = np.inf
         for w in xrange(self.simulation_details.nsimulations):
 
-#            wave = window_wave(plus_data_resampled[w] -
-#                    1j*cross_data_resampled[w])
             # XXX
             wave = plus_data_resampled[w] - 1j*cross_data_resampled[w]
 
@@ -672,37 +663,6 @@ class waveform_catalog:
             start_idx = align_idx - peak_idx
 
             self.NRComplexTimeSeries[w,start_idx:start_idx+len(wave)] = wave
-
-            self.NRAmpTimeSeries[w,:] = abs(self.NRComplexTimeSeries[w,:])
-            self.NRPhaseTimeSeries[w,:] = \
-                    phase_of(self.NRComplexTimeSeries[w,:])
-
-            # TRUNCATION ALGORITHM:
-                # 1) Loop through waveforms, find lengths of data with
-                # Amp>epsilon*max(Amp)
-                # 2) construct Planck window with length = min(lengths from 1)
-                # 3) Apply to all time series
-            if sum(self.NRAmpTimeSeries[w,:] > \
-                    trunc_epsilon*max(self.NRAmpTimeSeries[w,:])) < trunc_len:
-                trunc_len = sum(self.NRAmpTimeSeries[w,:] > \
-                    trunc_epsilon*max(self.NRAmpTimeSeries[w,:]))
-                trunc_idx = self.NRAmpTimeSeries[w,:] > \
-                    trunc_epsilon*max(self.NRAmpTimeSeries[w,:])
-
-        if self.trunc_time:
-
-            for w in xrange(self.simulation_details.nsimulations):
-
-                # Truncate to the length of the shortest waveform
-                #self.NRComplexTimeSeries[w,trunc_idx] = \
-                #        window_wave(self.NRComplexTimeSeries[w,trunc_idx])
-
-                self.NRComplexTimeSeries[w,np.invert(trunc_idx)] = 0.0
-
-                self.NRAmpTimeSeries[w,:] = abs(self.NRComplexTimeSeries[w,:])
-                self.NRPhaseTimeSeries[w,:] = \
-                        phase_of(self.NRComplexTimeSeries[w,:])
-                
 
         del time_data, plus_data, cross_data, plus_data_resampled, cross_data_resampled
 
@@ -733,13 +693,6 @@ class waveform_catalog:
                 np.zeros(shape=(self.simulation_details.nsimulations,
                     SI_datalen/SI_deltaT), dtype=complex)
 
-        self.SIAmpTimeSeries = \
-                np.zeros(shape=(self.simulation_details.nsimulations,
-                    SI_datalen/SI_deltaT))
-        self.SIPhaseTimeSeries = \
-                np.zeros(shape=(self.simulation_details.nsimulations,
-                    SI_datalen/SI_deltaT))
-
         # length of dummy series to position peaks halfway along - we will then
         # apply a Tukey window of SI_datalen to that time series
         SI_biglen = 32.0
@@ -751,7 +704,7 @@ class waveform_catalog:
             resampled_im = signal.resample(np.imag(self.NRComplexTimeSeries[w,:]), resamp_len)
 
             # The complex wave
-            wave = resampled_re + 1j*resampled_im
+            wave = resampled_re - 1j*resampled_im
 
             # Apply a Tukey win to ensure smoothness
             wave*=tukeywin.data.data
@@ -772,45 +725,7 @@ class waveform_catalog:
             self.SIComplexTimeSeries[w,:] = \
                     bigwave[startidx:startidx+SI_datalen/SI_deltaT]
 
-            self.SIAmpTimeSeries[w,:] = abs(self.SIComplexTimeSeries[w,:])
-            self.SIPhaseTimeSeries[w,:] = phase_of(self.SIComplexTimeSeries[w,:])
-
         return 0
-
-    def file_dump(self, catalog_name=None):
-        """
-        Dump the catalog data to pickle.  This will be useful for reproducing
-        PCA results later with consistent catalogs.
-        """
-
-        # Need to call it something but make the user do it rather than parsing
-        # all the parameters
-        if catalog_name is None:
-            print >> sys.stderr, "ERROR: you must provide a name for catalog \
-file dumps"
-            sys.exit(-1)
-
-
-        # Output path
-        try:
-            data_path=os.path.join(os.environ['BHEX_PREFIX'],"data/NR_data")
-        except KeyError:
-            print >> sys.stderr, "BHEX_PREFIX environment variable appears to be un-set"
-            sys.exit(-1)
-
-        # Make output directory
-        if not os.path.exists(data_path):
-            os.makedirs(data_path)
-
-
-        # Build filename
-        filename = os.path.join(data_path, catalog_name)
-
-        print "Performing data dump to %s.pickle"%filename
-        
-        # Pickle me!
-        pickle.dump(self, open(filename+".pickle",'wb'))
-
 
 # *******************************************************************************
 def main():
