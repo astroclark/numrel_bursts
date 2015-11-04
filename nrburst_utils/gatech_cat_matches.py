@@ -36,8 +36,7 @@ import pycbc.types
 from pycbc.waveform import get_td_waveform
 import pycbc.filter
 
-import burst_nr_utils as bnru
-from bhex_utils import bhex_wavedata as bwave
+import nrburst_utils as nrbu
 
 from matplotlib import pyplot as pl
 
@@ -133,13 +132,13 @@ print >> sys.stdout,  'Selecting Simulations'
 print >> sys.stdout,  ''
 then = timeit.time.time()
 simulations = \
-        bwave.simulation_details(param_bounds=bounds,
+        nrbu.simulation_details(param_bounds=bounds,
                 catdir='CATALOG_PAPER_FINAL')
 
 print >> sys.stdout,  '~~~~~~~~~~~~~~~~~~~~~'
 print >> sys.stdout,  'Building NR catalogue'
 print >> sys.stdout,  ''
-catalogue = bwave.waveform_catalogue(simulations, ref_mass=init_total_mass,
+catalogue = nrbu.waveform_catalogue(simulations, ref_mass=init_total_mass,
         SI_deltaT=deltaT, SI_datalen=datalen, distance=distance,
         trunc_time=False)
 now = timeit.time.time()
@@ -179,11 +178,11 @@ for w, wave in enumerate(catalogue.SIComplexTimeSeries):
 
     # Get the NR (plus) wave and put it in a pycbc TimeSeries object
     hplus_NR = pycbc.types.TimeSeries(np.real(wave), delta_t=deltaT)
-    hplus_NR.data[:] = bnru.taper(hplus_NR.data[:], delta_t=hplus_NR.delta_t)
+    hplus_NR.data[:] = nrbu.taper(hplus_NR.data[:], delta_t=hplus_NR.delta_t)
 
 
     # Extract physical parameters
-    mass1, mass2 = bwave.component_masses(init_total_mass, simulations.simulations[w]['q'])
+    mass1, mass2 = nrbu.component_masses(init_total_mass, simulations.simulations[w]['q'])
     spin1z = simulations.simulations[w]['a1z']
     spin2z = simulations.simulations[w]['a2z']
 
@@ -195,14 +194,14 @@ for w, wave in enumerate(catalogue.SIComplexTimeSeries):
         # --- Scale the NR waveform at this mass
 
         # Scale the NR waveform to the mass we want
-        hplus_NR_new = pycbc.types.TimeSeries(bnru.scale_wave(hplus_NR, mass,
+        hplus_NR_new = pycbc.types.TimeSeries(nrbu.scale_wave(hplus_NR, mass,
             init_total_mass), delta_t=deltaT)
-        hplus_NR_new.data[:] = bnru.taper(hplus_NR_new.data[:],
+        hplus_NR_new.data[:] = nrbu.taper(hplus_NR_new.data[:],
                 delta_t=hplus_NR_new.delta_t)
 
         # --- Generate the SEOBNR waveform to this mass
 
-        mass1, mass2 = bwave.component_masses(mass, simulations.simulations[w]['q'])
+        mass1, mass2 = nrbu.component_masses(mass, simulations.simulations[w]['q'])
 
         # Estimate ffinal
         chi = spawaveform.computechi(mass1, mass2, spin1z, spin2z)
@@ -220,7 +219,7 @@ for w, wave in enumerate(catalogue.SIComplexTimeSeries):
                 f_lower=f_lower,
                 delta_t=deltaT)
 
-        hplus_SEOBNR.data = bnru.taper(hplus_SEOBNR.data,
+        hplus_SEOBNR.data = nrbu.taper(hplus_SEOBNR.data,
                 delta_t=hplus_SEOBNR.delta_t)
 
      

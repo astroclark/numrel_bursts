@@ -49,6 +49,9 @@ __date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
 
 # *****************************************************************************
 global __param_names__
+#__param_names__ = ['D', 'mres', 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', 'th12',
+#                'thSL', 'thJL', 'Mmin30Hz', 'Mmin10Hz', 'Mchirpmin30Hz', 'a1x',
+#                'a1y', 'a1z', 'a2x', 'a2y', 'a2z', 'Lx',  'Ly', 'Lz', 'mf', 'af']
 __param_names__ = ['D', 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', 'th12',
                 'thSL', 'thJL', 'Mmin30Hz', 'Mmin10Hz', 'Mchirpmin30Hz', 'a1x',
                 'a1y', 'a1z', 'a2x', 'a2y', 'a2z', 'Lx',  'Ly', 'Lz', 'mf', 'af']
@@ -437,9 +440,10 @@ class simulation_details:
         # Make a copy of the list of simulations
         unique_simulations = list(simulations)
 
+        #physical_params = 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', \
+        #        'th12', 'thSL', 'thJL', 'mres'
         physical_params = 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', \
-                'th12', 'thSL', 'thJL'#, 'Mmin30Hz'
-                #'th12', 'thSL', 'thJL', 'Mmin10Hz', 'Mchirpmin30Hz', 'Mmin30Hz'
+                'th12', 'thSL', 'thJL'
 
         param_sets = []
 
@@ -501,8 +505,7 @@ class simulation_details:
         dictionaries
         """
         readme_data = np.loadtxt(readme_file, dtype=str)
-
-
+        
         simulations = []
         nNotFound = 0
         for s in xrange(len(readme_data)):
@@ -512,6 +515,7 @@ class simulation_details:
             runID = readme_data[s,0]
             wavename = readme_data[s,1]
             wavefile = glob.glob(os.path.join(datadir, runID, '*asc'))
+            #wavefile = glob.glob(os.path.join(datadir, runID, '*h5'))
 
             # Check that this waveform exists
             if len(wavefile)>1:
