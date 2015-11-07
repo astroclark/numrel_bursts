@@ -15,7 +15,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 """
-bhextractor_wavedata.py
+nrburst_utils.py
 
 Module for loading and building catalogs from the GT_BBH_BURST_CATALOG
 
@@ -29,8 +29,9 @@ import subprocess
 from optparse import OptionParser
 import ConfigParser
 import glob
-import cPickle as pickle
 import operator
+
+import h5py
 
 import numpy as np
 import scipy.signal as signal
@@ -39,6 +40,10 @@ import lal
 import lalsimulation as lalsim
 import pycbc.filter
 import pycbc.types
+from pycbc.waveform import get_td_waveform
+from pycbc.waveform import utils as wfutils
+from pycbc import pnutils
+from pycbc.detector import Detector
 
 __author__ = "James Clark <james.clark@ligo.org>"
 #git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
@@ -227,49 +232,118 @@ def scale_wave(wave, target_total_mass, init_total_mass):
 
     return resampled_wave
 
+def get_wf_pols(file, mtotal, inclination=0.0, delta_t=1./1024, f_lower=30,
+        distance=100):
+    """
+    Generate the NR_hdf5_pycbc waveform from the HDF5 file <file> with specified
+    params
+    """
 
-def mismatch(target_total_mass, init_total_mass, mass_bounds, tmplt_wave_data,
-        event_wave_data, asd=None, delta_t=1./512, delta_f=0.25,
-        ifo_response=False, f_min=30.0):
+    f = h5py.File(file, 'r')
+
+
+    # Metadata parameters:
+
+    params = {}
+    params['mtotal'] = mtotal
+
+    params['eta'] = f.attrs['eta']
+
+    params['mass1'] = pnutils.mtotal_eta_to_mass1_mass2(params['mtotal'], params['eta'])[0]
+    params['mass2'] = pnutils.mtotal_eta_to_mass1_mass2(params['mtotal'], params['eta'])[1]
+
+    params['spin1x'] = f.attrs['spin1x']
+    params['spin1y'] = f.attrs['spin1y']
+    params['spin1z'] = f.attrs['spin1z']
+    params['spin2x'] = f.attrs['spin2x']
+    params['spin2y'] = f.attrs['spin2y']
+    params['spin2z'] = f.attrs['spin2z']
+
+    params['coa_phase'] = f.attrs['coa_phase']
+
+    f.close()
+
+    hp, hc = get_td_waveform(approximant='NR_hdf5_pycbc', 
+                                     numrel_data=file,
+                                     mass1=params['mass1'],
+                                     mass2=params['mass2'],
+                                     spin1x=params['spin1x'],
+                                     spin1y=params['spin1y'],
+                                     spin1z=params['spin1z'],
+                                     spin2x=params['spin2x'],
+                                     spin2y=params['spin2y'],
+                                     spin2z=params['spin2z'],
+                                     delta_t=delta_t,
+                                     f_lower=f_lower,
+                                     inclination=inclination,
+                                     coa_phase=params['coa_phase'],
+                                     distance=distance)
+
+
+    hp_tapered = wfutils.taper_timeseries(hp, 'TAPER_START')
+    hc_tapered = wfutils.taper_timeseries(hc, 'TAPER_START')
+
+    return hp_tapered, hc_tapered
+
+def project_waveform(hp, hc, skyloc=(0.0, 0.0), polarization=0.0, detector_name="H1"):
+    """
+    Project the hp,c polarisations onto detector detname for sky location skyloc
+    and polarisation pol
+    """
+
+    detector = Detector(detector_name)
+
+    signal = detector.project_wave(hp, hc, skyloc[0], skyloc[1],
+            polarization)
+
+    return signal
+
+
+def mismatch(params,
+        skyloc=(0,0), nrfile=None, detector_name="H1", mass_bounds=None,
+        rec_data=None, asd=None, delta_t=1./1024, f_min=30.0):
     """
     Compute mismatch (1-match) between the tmplt wave and the event wave, given
-    the total mass.  Uses event_wave and psd which are defined globally in the
+    the total mass.  Uses rec_data and psd which are defined globally in the
     calling script.
 
-    XXX: Planned revision - pass in a params dictionary for the pycbc NR
-    waveform infrastructure and generate the wavefrom from that.
+    Note: the reconstructed waveform which is passed in should be the whitened
+    detector response, so that the template waveform is whitened by the ASD
+    prior to the match calculation, and no PSD is passed directly to match().
+
+    XXX: Can't i just pass in the config object to get the fixed params
     """
+    mtotal, inclination, polarization = params
+#   mtotal = float(params)
+#   inclination = 0.0
+#   polarization = 0.0
+#
     min_mass, max_mass = mass_bounds
 
-    if (target_total_mass >= min_mass) and (target_total_mass <= max_mass):
+    if (mtotal >= min_mass) and (mtotal <= max_mass):
 
-        # Convert the real part of the wave to a pycbc timeseries object
-        init_tmplt = pycbc.types.TimeSeries(np.real(tmplt_wave_data[:]),
-                delta_t=delta_t)
+        # Generate the polarisations
+        hp, hc = get_wf_pols(nrfile, mtotal, inclination=inclination, delta_t=delta_t)
 
-        # Rescale the template to this total mass
-        tmplt = pycbc.types.TimeSeries(scale_wave(init_tmplt, target_total_mass,
-            init_total_mass), delta_t=delta_t)
-
-        if ifo_response and asd is not None:
-            # Whiten the template
-            Tmplt = tmplt.to_frequencyseries()
-            Tmplt.data /= asd
-
-            # IFFT (just simplifies the code below) 
-            tmplt = Tmplt.to_timeseries()
-
-
-        if asd is not None and not ifo_response:
-            psd = pycbc.types.FrequencySeries(asd**2, delta_f=delta_f)
-        else:
-            psd = None
+        # Project to detector
+        tmplt = project_waveform(hp, hc, skyloc=skyloc,
+                polarization=polarization, detector_name=detector_name)
 
         # Put the reconstruction data in a TimeSeries
-        event_wave = pycbc.types.TimeSeries(event_wave_data, delta_t=delta_t)
+        rec_data = pycbc.types.TimeSeries(rec_data, delta_t=delta_t)
+
+        # Resize to the same length as the data
+        tlen = max(len(tmplt), len(rec_data))
+        tmplt.resize(tlen)
+        rec_data.resize(tlen)
+
+
+        # Whiten the template
+        Tmplt = tmplt.to_frequencyseries()
+        Tmplt.data /= asd
 
         try:
-            match, _ = pycbc.filter.match(tmplt, event_wave, psd=psd,
+            match, _ = pycbc.filter.match(Tmplt, rec_data, psd=None,
                     low_frequency_cutoff=f_min)
         except ZeroDivisionError:
             match = np.nan
@@ -277,6 +351,7 @@ def mismatch(target_total_mass, init_total_mass, mass_bounds, tmplt_wave_data,
         return 1-match
 
     else:
+        # Outside of mass range
 
         return 1.
 
@@ -338,10 +413,11 @@ class configuration:
     def __init__(self, configparser):
 
         self.sample_rate=configparser.getint('analysis', 'sample_rate')
-        self.deltaT=1./self.sample_rate
+        self.delta_t=1./self.sample_rate
         self.datalen=configparser.getfloat('analysis', 'datalen')
         self.f_min=configparser.getfloat('analysis', 'f_min')
         self.algorithm=configparser.get('analysis', 'algorithm')
+        self.detector_name=configparser.get('analysis', 'detector_name')
 
         self.nsampls=configparser.getint('parameters', 'nsampls')
         self.mass_guess=configparser.getfloat('parameters', 'mass_guess')
@@ -517,8 +593,8 @@ class simulation_details:
 
             runID = readme_data[s,0]
             wavename = readme_data[s,1]
-            wavefile = glob.glob(os.path.join(datadir, runID, '*asc'))
-            #wavefile = glob.glob(os.path.join(datadir, runID, '*h5'))
+            #wavefile = glob.glob(os.path.join(datadir, runID, '*asc'))
+            wavefile = glob.glob(os.path.join(datadir, runID, '*h5'))
 
             # Check that this waveform exists
             if len(wavefile)>1:
@@ -555,7 +631,7 @@ class waveform_catalog:
     """
 
     def __init__(self, simulation_details, ref_mass=None, distance=1,
-            SI_deltaT=1./1024, SI_datalen=4, NR_deltaT=0.1, NR_datalen=10000,
+            SI_delta_t=1./1024, SI_datalen=4, NR_delta_t=0.1, NR_datalen=10000,
             trunc_time=False): 
         """
         Initalise with a simulation_details object and a reference mass ref_mass to
@@ -565,7 +641,7 @@ class waveform_catalog:
         """
 
         self.simulation_details = simulation_details
-        self.NR_deltaT = NR_deltaT
+        self.NR_delta_t = NR_delta_t
         self.NR_datalen = NR_datalen
 
         self.trunc_time = trunc_time
@@ -576,19 +652,16 @@ class waveform_catalog:
         # Produce physical catalog if reference mass specified
         if ref_mass is not None:
 
-            # catalog_to_SI() adds variables to self
-
-            self.catalog_to_SI(ref_mass=ref_mass, SI_deltaT=SI_deltaT,
+            self.catalog_to_SI(ref_mass=ref_mass, SI_delta_t=SI_delta_t,
                     distance=distance, SI_datalen=SI_datalen)
-
 
             # assign some characteristics which will be useful elsewhere (e.g.,
             # making PSDs)
-            self.SI_deltaT = SI_deltaT
+            self.SI_delta_t = SI_delta_t
 
             example_ts = \
                     pycbc.types.TimeSeries(np.real(self.SIComplexTimeSeries[0,:]),
-                            delta_t=self.SI_deltaT)
+                            delta_t=self.SI_delta_t)
             example_fs = example_ts.to_frequencyseries()
             self.SI_deltaF = example_fs.delta_f
             self.SI_flen = len(example_fs)
@@ -621,16 +694,16 @@ class waveform_catalog:
             plus_data.append(wavedata[:,1])
             cross_data.append(wavedata[:,2])
 
-        # Now resample to a consistent deltaT
+        # Now resample to a consistent delta_t
         time_data_resampled  = []
         plus_data_resampled  = []
         cross_data_resampled = []
 
         print 'Resampling to uniform rate'
         for w in xrange(self.simulation_details.nsimulations): 
-            deltaT = np.diff(time_data[w])[0]
-            if deltaT != self.NR_deltaT:
-                resamp_len = deltaT / self.NR_deltaT * len(plus_data[w])
+            delta_t = np.diff(time_data[w])[0]
+            if delta_t != self.NR_delta_t:
+                resamp_len = delta_t / self.NR_delta_t * len(plus_data[w])
                 plus_data_resampled.append(signal.resample(plus_data[w],
                     resamp_len))
                 cross_data_resampled.append(signal.resample(cross_data[w],
@@ -642,7 +715,7 @@ class waveform_catalog:
         #
         # Insert into a numpy array
         #
-        NR_nsamples = self.NR_datalen / self.NR_deltaT
+        NR_nsamples = self.NR_datalen / self.NR_delta_t
         self.NRComplexTimeSeries = np.zeros(shape=(len(plus_data_resampled),
             NR_nsamples), dtype=complex)
 
@@ -656,9 +729,6 @@ class waveform_catalog:
             # XXX
             wave = plus_data_resampled[w] - 1j*cross_data_resampled[w]
 
-            # Normalisation (do this in the PCA)
-            #wave /= np.vdot(wave,wave)
-
             peak_idx=np.argmax(abs(wave))
             start_idx = align_idx - peak_idx
 
@@ -668,7 +738,7 @@ class waveform_catalog:
 
         return 0
 
-    def catalog_to_SI(self, ref_mass, SI_deltaT=1./512, distance=1.,
+    def catalog_to_SI(self, ref_mass, SI_delta_t=1./512, distance=1.,
             SI_datalen=4):
         """
         Convert waveforms in self.NRdata to physical time stamps / amplitudes
@@ -678,20 +748,20 @@ class waveform_catalog:
 
         # Add physical attributes
         self.ref_mass = ref_mass
-        self.SI_deltaT=SI_deltaT
+        self.SI_delta_t=SI_delta_t
         self.distance=distance
 
         # Time steps of NR waveforms at the reference mass: 
-        SI_deltaT_of_NR = ref_mass * lal.MTSUN_SI * self.NR_deltaT
+        SI_delta_t_of_NR = ref_mass * lal.MTSUN_SI * self.NR_delta_t
         Mscale = ref_mass * lal.MRSUN_SI / (distance * 1e6 * lal.PC_SI)
 
-        # Resample to duration in seconds (=nsamples x deltaT) x samples / second
-        resamp_len = int(np.ceil(self.NR_datalen/self.NR_deltaT\
-                *SI_deltaT_of_NR/self.SI_deltaT))
+        # Resample to duration in seconds (=nsamples x delta_t) x samples / second
+        resamp_len = int(np.ceil(self.NR_datalen/self.NR_delta_t\
+                *SI_delta_t_of_NR/self.SI_delta_t))
 
         self.SIComplexTimeSeries = \
                 np.zeros(shape=(self.simulation_details.nsimulations,
-                    SI_datalen/SI_deltaT), dtype=complex)
+                    SI_datalen/SI_delta_t), dtype=complex)
 
         # length of dummy series to position peaks halfway along - we will then
         # apply a Tukey window of SI_datalen to that time series
@@ -711,19 +781,19 @@ class waveform_catalog:
             
             # Populate the center SI_datalen seconds of a zero-array of
             # SI_biglen seconds
-            bigwave = np.zeros(SI_biglen / SI_deltaT, dtype=complex)
+            bigwave = np.zeros(SI_biglen / SI_delta_t, dtype=complex)
 
             # Locate peak of waveform and place it at the center of the big
             # array of zeros
             peakidx = np.argmax(abs(wave))
-            startidx = 0.5*SI_biglen/SI_deltaT - peakidx
+            startidx = 0.5*SI_biglen/SI_delta_t - peakidx
 
             bigwave[startidx:startidx+len(wave)] = \
                     Mscale*wave
 
-            startidx = 0.5*SI_biglen/SI_deltaT - 0.5*SI_datalen/SI_deltaT
+            startidx = 0.5*SI_biglen/SI_delta_t - 0.5*SI_datalen/SI_delta_t
             self.SIComplexTimeSeries[w,:] = \
-                    bigwave[startidx:startidx+SI_datalen/SI_deltaT]
+                    bigwave[startidx:startidx+SI_datalen/SI_delta_t]
 
         return 0
 
