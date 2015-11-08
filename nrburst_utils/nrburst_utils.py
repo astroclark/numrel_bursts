@@ -57,9 +57,12 @@ global __param_names__
 #__param_names__ = ['D', 'mres', 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', 'th12',
 #                'thSL', 'thJL', 'Mmin30Hz', 'Mmin10Hz', 'Mchirpmin30Hz', 'a1x',
 #                'a1y', 'a1z', 'a2x', 'a2y', 'a2z', 'Lx',  'Ly', 'Lz', 'mf', 'af']
-__param_names__ = ['D', 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', 'th12',
-                'thSL', 'thJL', 'Mmin30Hz', 'Mmin10Hz', 'Mchirpmin30Hz', 'a1x',
-                'a1y', 'a1z', 'a2x', 'a2y', 'a2z', 'Lx',  'Ly', 'Lz', 'mf', 'af']
+#__param_names__ = ['D', 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', 'th12',
+#                'thSL', 'thJL', 'Mmin30Hz', 'Mmin10Hz', 'Mchirpmin30Hz', 'a1x',
+#                'a1y', 'a1z', 'a2x', 'a2y', 'a2z', 'Lx',  'Ly', 'Lz', 'mf', 'af']
+__param_names__ = ['Mchirpmin30Hz', 'Mmin30Hz', 'a1', 'a2', 'eta', 'q',
+'spin1x', 'spin1y', 'spin1z', 'spin2x', 'spin2y', 'spin2z']
+
 
 # *****************************************************************************
 # Contents 
@@ -521,8 +524,10 @@ class simulation_details:
 
         #physical_params = 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', \
         #        'th12', 'thSL', 'thJL', 'mres'
-        physical_params = 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', \
-                'th12', 'thSL', 'thJL'
+        #physical_params = 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', \
+        #        'th12', 'thSL', 'thJL'
+        physical_params = 'a1', 'q', 'spin2x', 'spin2y', 'spin2z', 'eta', \
+                'spin1y', 'spin1x', 'spin1z', 'a2'
 
         param_sets = []
 
@@ -586,29 +591,31 @@ class simulation_details:
         readme_data = np.loadtxt(readme_file, dtype=str)
         
         simulations = []
-        nNotFound = 0
+        #nNotFound = 0
         for s in xrange(len(readme_data)):
 
             sim = dict()
 
             runID = readme_data[s,0]
-            wavename = readme_data[s,1]
+            sim['wavefile'] = readme_data[s,1]
+
+            #wavename = readme_data[s,1]
             #wavefile = glob.glob(os.path.join(datadir, runID, '*asc'))
-            wavefile = glob.glob(os.path.join(datadir, runID, '*h5'))
+            #wavefile = glob.glob(os.path.join(datadir, runID, '*h5'))
 
             # Check that this waveform exists
-            if len(wavefile)>1:
-                print >> sys.stderr, "Error, more than one data file in directory: %s"%(
-                        os.path.join(datadir,runID))
-                sys.exit(-1)
-            elif len(wavefile)==0:
-                print >> sys.stderr, "WARNING, No file matching glob pattern: \n%s"%(
-                        os.path.join(datadir,runID, '*asc'))
-                nNotFound+=1
-                continue
+#           if len(wavefile)>1:
+#               print >> sys.stderr, "Error, more than one data file in directory: %s"%(
+#                       os.path.join(datadir,runID))
+#               sys.exit(-1)
+#           elif len(wavefile)==0:
+#               print >> sys.stderr, "WARNING, No file matching glob pattern: \n%s"%(
+#                       os.path.join(datadir,runID, '*h5'))
+#               nNotFound+=1
+#                continue
 
-            sim['wavename'] = wavename
-            sim['wavefile'] = wavefile[0]
+            #sim['wavename'] = wavename
+            #sim['wavefile'] = wavefile[0]
             sim['runID'] = int(runID)
 
             start = len(readme_data[s,:]) -  len(__param_names__)
@@ -619,6 +626,7 @@ class simulation_details:
                 sim[param_name] = param_vals[p]
 
             simulations.append(sim)
+
 
         return simulations
 

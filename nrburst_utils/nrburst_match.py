@@ -118,7 +118,7 @@ polarizations = np.zeros(shape=(simulations.nsimulations, len(reconstruction_dat
 # ----------------------------------------------------------------------------------
 # XXX: Debugging
 inc = 90*np.random.random()
-pol = 360*np.random.random()
+pol = 360#*np.random.random()
 mass=82.
 
 print "INJECTING:"
@@ -147,8 +147,8 @@ data = Data.to_timeseries()
 for w in xrange(simulations.nsimulations):
 
     print >> sys.stdout,  "________________________________"
-    print >> sys.stdout,  "Computing match for %s (%d/%d)"%(simulations.simulations[w]['wavename'],
-            w+1, simulations.nsimulations)
+    print >> sys.stdout,  "Computing match (%d/%d)"%( w+1,
+            simulations.nsimulations)
 
     # Find best-fitting mass (in terms of match)
     print >> sys.stdout,  "Optimising for total mass for each sampled waveform..."
@@ -180,8 +180,7 @@ for w in xrange(simulations.nsimulations):
         print >> sys.stdout,  '-----------------------------'
         print >> sys.stdout,  "Evaluating sample waveform %d of %d"%( s,
                 len(reconstruction_data) )
-        print >> sys.stdout,  " (NR: %s [%d/%d])"%( simulations.simulations[w]['wavename'], w+1,
-                simulations.nsimulations)
+        print >> sys.stdout,  " (NR: [%d/%d])"%(w+1, simulations.nsimulations)
 
         #
         # Optimise match over total mass
