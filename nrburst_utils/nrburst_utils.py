@@ -64,100 +64,15 @@ __param_names__ = ['Mchirpmin30Hz', 'Mmin30Hz', 'a1', 'a2', 'eta', 'q',
 'spin1x', 'spin1y', 'spin1z', 'spin2x', 'spin2y', 'spin2z']
 
 
-# *****************************************************************************
-# Contents 
-#
-# 1) General purpose signal processing tools
-#       a) highpass()
-#       b) window_wave()
-#       c) planckwin()
-#
-# 2) Physics Functions
-#       a) component_masses() 
-#       b) cartesian_spins()
-#       c) mtot_from_mchirp()
-#
-# 3) Match calculations
-#       a) scale_wave()
-#       b) mismatch()
-#       c) parser()
-#       d) configuration
-#
-# 4) Waveform catalog Tools
-#       a) simulation_details
-#       b) waveform_catalog
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
 # General purpose signal processing tools
 
 
-def highpass(timeseries, delta_t=1./512, knee=9., order=12, attn=0.1):
-    """
-    Trivial interface function to make looping through catalogs neater
-    """
-
-    tmp = pycbc.types.TimeSeries(initial_array=timeseries, delta_t=delta_t)
-
-    return np.array(pycbc.filter.highpass(tmp, frequency=knee, filter_order=order,
-            attenuation=attn).data)
-
-def window_wave(input_data):
-
-    nonzero=np.argwhere(abs(input_data)>1e-3*max(abs(input_data)))
-    idx = range(nonzero[0],nonzero[-1])
-    win = planckwin(len(idx), 0.3)
-    win[0.5*len(win):] = 1.0
-    input_data[idx] *= win
-
-    return input_data
-
-def planckwin(N, epsilon):
-
-    t1 = -0.5*N
-    t2 = -0.5*N * (1.-2.*epsilon)
-    t3 = 0.5*N * (1.-2.*epsilon)
-    t4 = 0.5*N
-
-    Zp = lambda t: (t2-t1)/(t-t1) + (t2-t1)/(t-t2)
-    Zm = lambda t: (t3-t4)/(t-t3) + (t3-t4)/(t-t4)
-
-    win = np.zeros(N)
-    ts = np.arange(-0.5*N, 0.5*N)
-
-    for n,t in enumerate(ts):
-        if t<=t1:
-            win[n] = 0.0
-        elif t1<t<t2:
-            win[n] = 1./(np.exp(Zp(t))+1)
-        elif t2<=t<=t3:
-            win[n] = 1.0
-        elif t3<t<t4:
-            win[n] = 1./(np.exp(Zm(t))+1)
-
-    return win
-
-def phase_of(z):
-    return np.unwrap(np.angle(z))
-
-def taper(input_data, delta_t):
-    """ 
-    Window out the inspiral (everything prior to the biggest peak)
-    """
-
-    timeseries = lal.CreateREAL8TimeSeries('blah', 0.0, 0,
-            delta_t, lal.StrainUnit, int(len(input_data)))
-    timeseries.data.data = np.copy(input_data)
-
-    lalsim.SimInspiralREAL8WaveTaper(timeseries.data,
-        lalsim.SIM_INSPIRAL_TAPER_START)
-        #lalsim.SIM_INSPIRAL_TAPER_STARTEND)
-
-    return timeseries.data.data
-
 def extract_wave(inwave, datalen=4.0, sample_rate = 4096):
     """
-    Extract a subsection of a reconstructed waveform
+    Extract a subsection of a reconstructed waveform; useful for cleaning CWB
+    reconstruction
     """
     extract_len = 0.5 # retain this many seconds of reconstruction
     delta = 0.15 # center the retained data on the peak of the waveform minus
@@ -176,64 +91,10 @@ def extract_wave(inwave, datalen=4.0, sample_rate = 4096):
 
     return output
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Physics Functions
-
-def component_masses(total_mass, mass_ratio):
-    """
-    Return m1 and m2, given total mass and mass ratio (m1/m2)
-
-    m1, m2 = component_masses(total_mass, mass_ratio)
-    """
-
-    m1 = mass_ratio * total_mass / (1.0 + mass_ratio)
-    m2 = total_mass - m1
-
-    return m1, m2
-
-
-def cartesian_spins(spin_magnitude, spin_theta):
-    """
-    Compute cartesian spin components.  Only does z-component for now
-    """
-
-    if np.isnan(spin_magnitude) or np.isnan(spin_theta):
-        return 0.0
-    else:
-        spin_z = spin_magnitude * np.cos(spin_theta * np.pi / 180.0)
-    return spin_z
-
-def mtot_from_mchirp(mc, q):
-    """
-    Compute the total mass from chirp mass and mass ratio (m1/m2)
-    """
-    eta = q/(1+q)**2.0
-    return mc * eta**(-3./5)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Match calculations
 
-def scale_wave(wave, target_total_mass, init_total_mass):
-    """
-    Scale the waveform to total_mass.  Assumes the waveform is initially
-    generated at init_total_mass defined in this script.
-    """
-    scaling_data = np.copy(wave.data[:])
-
-    amp = abs(scaling_data)
-
-    scale_ratio = target_total_mass / init_total_mass
-    scaling_data *= scale_ratio
-
-    peakidx = np.argmax(amp)
-
-    interp_times = scale_ratio * wave.sample_times.data[:] - \
-            peakidx*wave.delta_t*(scale_ratio-1)
-
-    resampled_wave = np.interp(wave.sample_times.data[:], interp_times,
-            scaling_data)
-
-    return resampled_wave
 
 def get_wf_pols(file, mtotal, inclination=0.0, delta_t=1./1024, f_lower=30,
         distance=100):
@@ -303,8 +164,8 @@ def project_waveform(hp, hc, skyloc=(0.0, 0.0), polarization=0.0, detector_name=
 
 
 def mismatch(params,
-        skyloc=(0,0), nrfile=None, detector_name="H1", mass_bounds=None,
-        rec_data=None, asd=None, delta_t=1./1024, f_min=30.0):
+        skyloc=(0,0), polarization=0, nrfile=None, detector_name="H1",
+        mass_bounds=None, rec_data=None, asd=None, delta_t=1./1024, f_min=30.0):
     """
     Compute mismatch (1-match) between the tmplt wave and the event wave, given
     the total mass.  Uses rec_data and psd which are defined globally in the
@@ -316,11 +177,8 @@ def mismatch(params,
 
     XXX: Can't i just pass in the config object to get the fixed params
     """
-    mtotal, inclination, polarization = params
-#   mtotal = float(params)
-#   inclination = 0.0
-#   polarization = 0.0
-#
+    mtotal, inclination = params
+
     min_mass, max_mass = mass_bounds
 
     if (mtotal >= min_mass) and (mtotal <= max_mass):
@@ -415,21 +273,21 @@ class configuration:
 
     def __init__(self, configparser):
 
-        self.sample_rate=configparser.getint('analysis', 'sample_rate')
+        self.sample_rate=configparser.getint('analysis', 'sample-rate')
         self.delta_t=1./self.sample_rate
         self.datalen=configparser.getfloat('analysis', 'datalen')
-        self.f_min=configparser.getfloat('analysis', 'f_min')
+        self.f_min=configparser.getfloat('analysis', 'f-min')
         self.algorithm=configparser.get('analysis', 'algorithm')
-        self.detector_name=configparser.get('analysis', 'detector_name')
+        self.detector_name=configparser.get('analysis', 'detector-name')
 
         self.nsampls=configparser.getint('parameters', 'nsampls')
-        self.mass_guess=configparser.getfloat('parameters', 'mass_guess')
-        self.min_chirp_mass=configparser.getfloat('parameters', 'min_chirp_mass')
-        self.max_chirp_mass=configparser.getfloat('parameters', 'max_chirp_mass')
+        self.min_chirp_mass=configparser.getfloat('parameters', 'min-chirp-mass')
+        self.max_chirp_mass=configparser.getfloat('parameters', 'max-chirp-mass')
 
         self.reconstruction=configparser.get('paths', 'reconstruction')
         self.spectral_estimate=configparser.get('paths', 'spectral-estimate')
         self.catalog=configparser.get('paths', 'catalog')
+        self.extrinsic_params=configparser.get('paths', 'extrinsic-params')
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -441,32 +299,20 @@ class simulation_details:
     The waveform catalog for the chosen series (possibly plural) with
     user-specified parameter bounds.
     
-    Example Usage:
+    Example bounds:
 
     In [24]: bounds = dict()
 
     In [25]: bounds['q'] = [2, np.inf]
 
-    In [26]: simcat = bwave.simulation_details(param_bounds=bounds)
-
-    In [28]: for sim in simcat.simulations: print sim
-    {'a1': 0.6, 'th2L': 90.0, 'D': 7.0, 'thJL': 19.8, 'th1L': 90.0, 'q': 2.5, 'th12': 180.0, 'a2': 0.6,  'wavefile': ['/home/jclark308/Projects/bhextractor/data/NR_data/GT_BBH_BURST_CATALOG/Eq-series/Eq_D7_q2.50_a0.6_ph270_m140/Strain_jinit_l2_m2_r75_Eq_D7_q2.50_a0.6_ph270_m140.asc'], 'wavename': 'Eq_D7_q2.50_a0.6_ph270_m140', 'ph2': 90.0, 'ph1': -90.0, 'Mmin30Hz': 97.3, 'Mmin10Hz': 292.0, 'thSL': 90.0}
-
-    ... and so on ...
-
-    Note: will default to waveforms with min mass = 100 Msun permissable for a
-    low-frequency-cutoff at 30 Hz, unless Mmin10Hz or a different minimum mass
-    is defined
-
     """
 
-    def __init__(self, param_bounds=None, catdir=None, fmin=30.0):
+    def __init__(self, param_bounds=None, catdir=None):
 
         # ######################################################
         # Other initialisation
         self.param_bounds = param_bounds
 
-        self.fmin = fmin
         self.catdir=catdir
 
         print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -598,24 +444,6 @@ class simulation_details:
 
             runID = readme_data[s,0]
             sim['wavefile'] = readme_data[s,1]
-
-            #wavename = readme_data[s,1]
-            #wavefile = glob.glob(os.path.join(datadir, runID, '*asc'))
-            #wavefile = glob.glob(os.path.join(datadir, runID, '*h5'))
-
-            # Check that this waveform exists
-#           if len(wavefile)>1:
-#               print >> sys.stderr, "Error, more than one data file in directory: %s"%(
-#                       os.path.join(datadir,runID))
-#               sys.exit(-1)
-#           elif len(wavefile)==0:
-#               print >> sys.stderr, "WARNING, No file matching glob pattern: \n%s"%(
-#                       os.path.join(datadir,runID, '*h5'))
-#               nNotFound+=1
-#                continue
-
-            #sim['wavename'] = wavename
-            #sim['wavefile'] = wavefile[0]
             sim['runID'] = int(runID)
 
             start = len(readme_data[s,:]) -  len(__param_names__)
