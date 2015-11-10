@@ -35,39 +35,21 @@ from pylal import spawaveform
 import pycbc.types
 from pycbc.waveform import get_td_waveform
 import pycbc.filter
+from pycbc import pnutils
+
 
 import nrburst_utils as nrbu
 
 from matplotlib import pyplot as pl
 
 __author__ = "James Clark <james.clark@ligo.org>"
-git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
-__version__ = "git id %s" % git_version_id
-
 gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
 __date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
 
-def scale_approx(wave, target_total_mass, init_total_mass):
-    """ 
-    Scale the waveform to total_mass.  Assumes the waveform is initially
-    generated at init_total_mass defined in this script.
-    """
-
-    scaling_data = np.copy(wave.data[:])
-
-    amp = abs(scaling_data)
-
-    scale_ratio = target_total_mass / init_total_mass
-    scaling_data *= scale_ratio
-
-    peakidx = np.argmax(amp)
-
-    interp_times = scale_ratio * wave.sample_times.data[:]
-
-    resamp_wave = np.interp(wave.sample_times.data[:], interp_times,
-            scaling_data)
-
-    return resamp_wave
+# Get the current git version
+#git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
+#        cwd=os.path.dirname(sys.argv[0])).strip()
+#__version__ = "git id %s" % git_version_id
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -78,23 +60,45 @@ def scale_approx(wave, target_total_mass, init_total_mass):
 #
 bounds = dict()
 
-# For sanity check with NRAR 
-#bounds['q'] = [2,2]
-#bounds['a1'] = [0.1, 0.2]
-#bounds['a2'] = [0.5, 0.7]
-#bounds['Mmin30Hz'] = [-np.inf,  60]
+# *************************************
+#   1)  D12_q2.00_a0.15_-0.60_m200 
+#    -  GATECH0199.h5
+bounds['q'] = [1.999, 2.001]
+bounds['spin1z'] = [0.14, 0.16]
+bounds['spin2z'] = [-0.59, -0.61]
+ 
+#    2) Sq4_d9_a0.6_oth.270_rr_M180 
+#    - Highest resolution of this run missing in h5 catalog
+#    - for lower res try: GATECH0410.h5
+#   bounds['q'] = [3.9999, 4.0001]
+#   bounds['spin1z'] = [0, 0.00001]
+#   bounds['spin2z'] = [0, 0.00001]
+#   bounds['spin1x'] = [-0.61, -0.59]
+#   bounds['spin2x'] = [-0.61, -0.59]
 
-#(i) 518:  D7.5_q15.00_a0.0_CHgEEB_m800
-bounds['q'] = [14,np.inf]
+#    3) D7.5_q15.00_a0.0_CHgEEB_m800
+#    - missing from the h5 catalog
+#bounds['q'] = [14.99, 15.01]
 
-# (ii) 516: q8_LL_D9_a0.6_th1_45_th2_225_m400
-#bounds['q'] = [8, 8]
+#    4) RO3_D10_q1.50_a0.60_oth.090_M120
+#    - GATECH0173.h5
+#bounds['q'] = [1.4999, 1.50001]
+#bounds['spin1z'] = [0, 0.0001]
+#bounds['spin2z'] = [0.59, 0.61]
 
-# (iii) 465:  D10_q4.00_a0.8_th174_Q20
-#   bounds['q'] = [4, 4]
-#   bounds['a1'] = [0.8, 0.8]
-#   bounds['a2'] = [0.0, 0.0]
-#   bounds['th1L'] = [174, 175]
+
+# *************************************
+
+inc = 0 # inclination
+approx='SEOBNRv2'
+
+#
+#    4) RO3_D10_q1.50_a0.60_oth.090_M120
+#    - GATECH0173.h5
+#
+#    5) q8_LL_D9_a0.6_th1_45_th2_225_m400
+#    - GATECH0447.h5
+
 
 #
 # --- Plotting options
@@ -105,7 +109,7 @@ maxMass = 500.0
 #
 # --- Time Series Config
 #
-deltaT = 1./8192
+delta_t = 1./4096
 datalen = 4.0
 
 #
@@ -114,13 +118,14 @@ datalen = 4.0
 asd_file = \
         "/home/jclark/Projects/bhextractor/data/noise_curves/early_aligo.dat"
 
+#
+# --- Catalog
+#
+catalog='/home/jclark/Projects/GW150914_data/nr_catalog/gatech_hdf5'
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Generate The Catalogue
 
-init_total_mass = 100   # Generate a catalogue at this mass; shouldn't matter,
-                        # we rescale anyway
-
-distance=100. # Mpc (doesn't really matter)
 
 plot_snr = 8
 
@@ -133,18 +138,11 @@ print >> sys.stdout,  ''
 then = timeit.time.time()
 simulations = \
         nrbu.simulation_details(param_bounds=bounds,
-                catdir='CATALOG_PAPER_FINAL')
-
-print >> sys.stdout,  '~~~~~~~~~~~~~~~~~~~~~'
-print >> sys.stdout,  'Building NR catalogue'
-print >> sys.stdout,  ''
-catalogue = nrbu.waveform_catalogue(simulations, ref_mass=init_total_mass,
-        SI_deltaT=deltaT, SI_datalen=datalen, distance=distance,
-        trunc_time=False)
-now = timeit.time.time()
-print >> sys.stdout,  "...catalogue construction took %.1f..."%(now-then)
+                catdir=catalog)
 
 asd_data = np.loadtxt(asd_file)
+
+sys.exit()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Match Calculations
@@ -161,178 +159,158 @@ asd_data = np.loadtxt(asd_file)
 #   each dictionary is 1 GAtech waveform with all physical attributes, as well
 #   as matches at 5 mass scales with some selection of approximants
 
+# Set up the Masses we're going to study
+masses = np.linspace(simulations.simulations[0]['Mmin30Hz'], maxMass,
+        nMassPoints)
 
-# Loop over waves in NR catalogue
-for w, wave in enumerate(catalogue.SIComplexTimeSeries):
+# matches is going to be a list of tuples: (mass, match)
+matches = []
 
-    print >> sys.stdout,  "________________________________"
-    print >> sys.stdout,  "Computing match for %s (%d/%d)"%(simulations.simulations[w]['wavename'],
-            w+1, simulations.nsimulations)
+f, ax = pl.subplots(nrows = len(masses), ncols=2, figsize=(15,15))
 
-    # Set up the Masses we're going to study
-    masses = np.linspace(simulations.simulations[w]['Mmin30Hz'], maxMass,
-            nMassPoints)
+for m,mass in enumerate(masses):
+    "Extracting and generating mass %d of %d (%.2f)"%(m, len(masses), mass)
 
-    # matches is going to be a list of tuples: (mass, match)
-    matches = []
+    # --- Generate the polarisations
+    hplus_NR, hcross_NR = \
+            nrbu.get_wf_pols(simulations.simulations[0]['wavefile'], mass,
+                    inclination=inc, delta_t=delta_t, f_lower=30.00001)
 
-    # Get the NR (plus) wave and put it in a pycbc TimeSeries object
-    hplus_NR = pycbc.types.TimeSeries(np.real(wave), delta_t=deltaT)
-    hplus_NR.data[:] = nrbu.taper(hplus_NR.data[:], delta_t=hplus_NR.delta_t)
+    # --- Generate the approx waveform to this mass
+    mass1, mass2 = nrbu.component_masses(mass, simulations.simulations[0]['q'])
 
+    # Estimate ffinal 
+    chi = pnutils.phenomb_chi(mass1, mass2,
+            simulations.simulations[0]['spin1z'],simulations.simulations[0]['spin2z'])
+    ffinal = pnutils.get_final_freq(approx, mass1, mass2, 
+            simulations.simulations[0]['spin1z'],simulations.simulations[0]['spin2z'])
 
-    # Extract physical parameters
-    mass1, mass2 = nrbu.component_masses(init_total_mass, simulations.simulations[w]['q'])
-    spin1z = simulations.simulations[w]['a1z']
-    spin2z = simulations.simulations[w]['a2z']
+    Hf = hplus_NR.to_frequencyseries()
+    f_lower = 0.8*Hf.sample_frequencies.data[ np.argmax(abs(Hf)) ]
 
+    hplus_approx, _ = get_td_waveform(approximant=approx,
+            distance=100,
+            mass1=mass1,
+            mass2=mass2,
+            spin1z=simulations.simulations[0]['spin1z'],
+            spin2z=simulations.simulations[0]['spin2z'],
+            f_lower=f_lower,
+            delta_t=delta_t)
 
+    hplus_approx.data = nrbu.taper(hplus_approx.data,
+            delta_t=hplus_approx.delta_t)
 
-    f, ax = pl.subplots(nrows = len(masses), ncols=2, figsize=(15,15))
-    for m,mass in enumerate(masses):
+ 
+    # Make the timeseries consistent lengths
+    tlen = max(len(hplus_NR), len(hplus_approx))
+    hplus_approx.resize(tlen)
+    hplus_NR.resize(tlen)
 
-        # --- Scale the NR waveform at this mass
-
-        # Scale the NR waveform to the mass we want
-        hplus_NR_new = pycbc.types.TimeSeries(nrbu.scale_wave(hplus_NR, mass,
-            init_total_mass), delta_t=deltaT)
-        hplus_NR_new.data[:] = nrbu.taper(hplus_NR_new.data[:],
-                delta_t=hplus_NR_new.delta_t)
-
-        # --- Generate the SEOBNR waveform to this mass
-
-        mass1, mass2 = nrbu.component_masses(mass, simulations.simulations[w]['q'])
-
-        # Estimate ffinal
-        chi = spawaveform.computechi(mass1, mass2, spin1z, spin2z)
-        ffinal = spawaveform.imrffinal(mass1, mass2, chi)
-
-        Hf = hplus_NR_new.to_frequencyseries()
-        f_lower = 0.8*Hf.sample_frequencies.data[ np.argmax(abs(Hf)) ]
-
-        hplus_SEOBNR, _ = get_td_waveform(approximant="SEOBNRv2",
-                distance=distance,
-                mass1=mass1,
-                mass2=mass2,
-                spin1z=spin1z,
-                spin2z=spin2z,
-                f_lower=f_lower,
-                delta_t=deltaT)
-
-        hplus_SEOBNR.data = nrbu.taper(hplus_SEOBNR.data,
-                delta_t=hplus_SEOBNR.delta_t)
-
-     
-        # Make the timeseries consistent lengths
-        tlen = max(len(hplus_NR_new), len(hplus_SEOBNR))
-        hplus_SEOBNR.resize(tlen)
-        hplus_NR_new.resize(tlen)
-
-        # Interpolate the ASD to the waveform frequencies (this is convenient so that we
-        # end up with a PSD which overs all frequencies for use in the match calculation
-        # later
-        asd = np.interp(hplus_NR_new.to_frequencyseries().sample_frequencies,
-                asd_data[:,0], asd_data[:,1])
+    # Interpolate the ASD to the waveform frequencies (this is convenient so that we
+    # end up with a PSD which overs all frequencies for use in the match calculation
+    # later
+    asd = np.interp(hplus_NR.to_frequencyseries().sample_frequencies,
+            asd_data[:,0], asd_data[:,1])
 
 
-        # Now insert ASD into a pycbc frequency series so we can use
-        # pycbc.filter.match() later
-        noise_psd = pycbc.types.FrequencySeries(asd**2, delta_f =
-                hplus_NR_new.to_frequencyseries().delta_f)
+    # Now insert ASD into a pycbc frequency series so we can use
+    # pycbc.filter.match() later
+    noise_psd = pycbc.types.FrequencySeries(asd**2, delta_f =
+            hplus_NR.to_frequencyseries().delta_f)
 
 #       from pycbc.psd import aLIGOZeroDetHighPower
-#       delta_f = 1.0 / hplus_SEOBNR.duration
+#       delta_f = 1.0 / hplus_approx.duration
 #       flen = tlen/2 + 1
 #       noise_psd = aLIGOZeroDetHighPower(flen, delta_f, 10) 
-        # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
-#       Hf = abs(hplus_SEOBNR.to_frequencyseries())
+#       Hf = abs(hplus_approx.to_frequencyseries())
 #       inband = noise_psd.sample_frequencies.data>30
 #       upp_bound = \
 #               noise_psd.sample_frequencies[inband][np.argwhere(Hf.data[inband]<1e-2*Hf[inband].max())[0]]
-        #upp_bound = 0.5*1./deltaT
-        upp_bound = 1.5*ffinal
+    #upp_bound = 0.5*1./delta_t
+    upp_bound = 1.5*ffinal
 
-        match, _ = pycbc.filter.match(hplus_SEOBNR, hplus_NR_new,
-                low_frequency_cutoff=30.0, psd=noise_psd,
-                high_frequency_cutoff=upp_bound)
+    match, _ = pycbc.filter.match(hplus_approx, hplus_NR,
+            low_frequency_cutoff=30.0, psd=noise_psd,
+            high_frequency_cutoff=upp_bound)
 
-        # ------------------------------------------------------------------
-        # DIAGNOSTIC PLOTS
+    # ------------------------------------------------------------------
+    # DIAGNOSTIC PLOTS
 
-        print "~~~~~~~~~~~~~~~~~~~~~~~"
-        print "Mass, mismatch (%)"
-        print mass, 100*(1-match)
+    print "~~~~~~~~~~~~~~~~~~~~~~~"
+    print "Mass, mismatch (%)"
+    print mass, 100*(1-match)
 
-        # Normalise to unit SNR
-        hplus_SEOBNR.data[:] /= pycbc.filter.sigma(hplus_SEOBNR,
-                psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
-        sigma_SEOBNR = pycbc.filter.sigma(hplus_SEOBNR,
-                psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
-        print 'sigma SEOBNR', sigma_SEOBNR
+    # Normalise to unit SNR
+    hplus_approx.data[:] /= pycbc.filter.sigma(hplus_approx,
+            psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
+    sigma_approx = pycbc.filter.sigma(hplus_approx,
+            psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
+    print 'sigma approx', sigma_approx
 
-        hplus_NR_new.data[:] /= pycbc.filter.sigma(hplus_NR_new,
-                psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
-        sigma_NR_new = pycbc.filter.sigma(hplus_NR_new,
-                psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
-        print 'sigma NR', sigma_NR_new
+    hplus_NR.data[:] /= pycbc.filter.sigma(hplus_NR,
+            psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
+    sigma_NR = pycbc.filter.sigma(hplus_NR,
+            psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
+    print 'sigma NR', sigma_NR
 
-        Hplus_SEOBNR = hplus_SEOBNR.to_frequencyseries()
-        Hplus_NR_new = hplus_NR_new.to_frequencyseries()
+    Hplus_approx = hplus_approx.to_frequencyseries()
+    Hplus_NR = hplus_NR.to_frequencyseries()
 
-        maxidx = np.argmax(hplus_NR_new)
-        ax[m][0].plot(hplus_NR_new.sample_times -
-                hplus_NR_new.sample_times[maxidx], hplus_NR_new,
-                label='NR')
- 
-        maxidx = np.argmax(hplus_SEOBNR)
-        ax[m][0].plot(hplus_SEOBNR.sample_times -
-                hplus_SEOBNR.sample_times[maxidx], hplus_SEOBNR,
-                label='SEOBNR')
+    maxidx = np.argmax(hplus_NR)
+    ax[m][0].plot(hplus_NR.sample_times -
+            hplus_NR.sample_times[maxidx], hplus_NR,
+            label='NR')
 
-        ax[m][0].set_title('M$_{\mathrm{tot}}$=%.2f M$_{\odot}$, mismatch=%.2f %%'%(
-            mass, 100*(1-match)))
+    maxidx = np.argmax(hplus_approx)
+    ax[m][0].plot(hplus_approx.sample_times -
+            hplus_approx.sample_times[maxidx], hplus_approx,
+            label='approx')
+
+    ax[m][0].set_title('M$_{\mathrm{tot}}$=%.2f M$_{\odot}$, mismatch=%.2f %%'%(
+        mass, 100*(1-match)))
 
 #        ax[m][0].legend(loc='lower left')
- 
-        ax[m][0].set_xlabel('Frequency [Hz]')
-        ax[m][0].set_ylabel('h(t) [arb units]')
+
+    ax[m][0].set_xlabel('Frequency [Hz]')
+    ax[m][0].set_ylabel('h(t) [arb units]')
 
 
-        ax[m][0].set_xlim(-2, 0.25)
+    ax[m][0].set_xlim(-2, 0.25)
 
-        # Fdomain
- 
-        ax[m][1].loglog(Hplus_NR_new.sample_frequencies,
-                   plot_snr*2*abs(Hplus_NR_new)*np.sqrt(Hplus_NR_new.sample_frequencies),
-                   label='NR')
- 
-        ax[m][1].loglog(Hplus_SEOBNR.sample_frequencies,
-                   plot_snr*2*abs(Hplus_SEOBNR)*np.sqrt(Hplus_SEOBNR.sample_frequencies),
-                   label='SEOBNR')
+    # Fdomain
 
-        ax[m][1].loglog(noise_psd.sample_frequencies, np.sqrt(noise_psd),
-                label='noise psd', color='k', linestyle='--')
+    ax[m][1].loglog(Hplus_NR.sample_frequencies,
+               plot_snr*2*abs(Hplus_NR)*np.sqrt(Hplus_NR.sample_frequencies),
+               label='NR')
 
-        ax[m][1].set_title('M$_{\mathrm{tot}}$=%.2f M$_{\odot}$, mismatch=%.2f %%'%(
-            mass, 100*(1-match)))
+    ax[m][1].loglog(Hplus_approx.sample_frequencies,
+               plot_snr*2*abs(Hplus_approx)*np.sqrt(Hplus_approx.sample_frequencies),
+               label=approx)
 
-        ax[m][1].legend(loc='lower right')
- 
-        ax[m][1].axvline(30, color='r')
-        ax[m][1].axvline(upp_bound, color='r')
+    ax[m][1].loglog(noise_psd.sample_frequencies, np.sqrt(noise_psd),
+            label='noise psd', color='k', linestyle='--')
 
-        ax[m][1].set_xlabel('Frequency [Hz]')
-        ax[m][1].set_ylabel('2|H$_+$($f$)|$\sqrt{f}$ & $\sqrt{S(f)}$')
-        ax[m][1].set_ylim(0.01*min(asd), 10*max(asd))
-        ax[m][1].set_xlim(9, 2e3)
- 
-    f.tight_layout()
-    pl.show()
-        # ------------------------------------------------------------------
+    ax[m][1].set_title('M$_{\mathrm{tot}}$=%.2f M$_{\odot}$, mismatch=%.2f %%'%(
+        mass, 100*(1-match)))
+
+    ax[m][1].legend(loc='lower right')
+
+    ax[m][1].axvline(30, color='r')
+    ax[m][1].axvline(upp_bound, color='r')
+
+    ax[m][1].set_xlabel('Frequency [Hz]')
+    ax[m][1].set_ylabel('2|H$_+$($f$)|$\sqrt{f}$ & $\sqrt{S(f)}$')
+    ax[m][1].set_ylim(0.01*min(asd), 10*max(asd))
+    ax[m][1].set_xlim(9, 2e3)
+
+f.tight_layout()
+pl.show()
+    # ------------------------------------------------------------------
 #
-    sys.exit()
+sys.exit()
 
 
 

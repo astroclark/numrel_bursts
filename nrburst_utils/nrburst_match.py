@@ -118,8 +118,8 @@ polarizations = np.zeros(shape=(simulations.nsimulations, len(reconstruction_dat
 # ----------------------------------------------------------------------------------
 # XXX: Debugging
 inc = 90*np.random.random()
-pol = 360#*np.random.random()
-mass=82.
+pol = 0*np.random.random()
+mass = 74.
 
 print "INJECTING:"
 print mass, inc, pol
