@@ -233,43 +233,43 @@ for w in xrange(simulations.nsimulations):
         # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         # XXX: Debugging / Testing
 
-        from matplotlib import pyplot as pl
-        import pycbc.types
-
-        # Generate the polarisations which correspond to the best-fit parameters
-        hp, hc = nrbu.get_wf_pols(simulations.simulations[w]['wavefile'], masses[w,s],
-                inclination=inclinations[w,s], delta_t=config.delta_t)
-
-        # Project to detector
-        tmplt = nrbu.project_waveform(hp, hc, skyloc=(rec_right_ascension[s],
-            rec_declination[s]), polarization=rec_polarization[s],
-            detector_name=config.detector_name)
-
-        # Resize to the same length as the data
-        tlen = max(len(tmplt), len(sample))
-        tmplt.resize(tlen)
-
-        # Whiten the best-fit waveform
-        Tmplt = tmplt.to_frequencyseries()
-        Tmplt.data /= asd 
-
-        tmplt = Tmplt.to_timeseries()
-        tmplt.data /= pycbc.filter.sigma(tmplt)
-
-        sample = pycbc.types.TimeSeries(sample, delta_t=config.delta_t)
-        sample.data /= pycbc.filter.sigma(sample)
-
-        pl.figure()
-        pl.plot(tmplt.sample_times - tmplt.sample_times[np.argmax(tmplt)],
-                tmplt, label='tmplt')
-        pl.plot(sample.sample_times - sample.sample_times[np.argmax(sample)],
-                sample, label='data')
-        pl.legend()
-        pl.title('%f'%matches[w,s])
-        pl.xlim(-0.15,0.1)
-        pl.show()
-
-        sys.exit()
+#       from matplotlib import pyplot as pl
+#       import pycbc.types
+#
+#       # Generate the polarisations which correspond to the best-fit parameters
+#       hp, hc = nrbu.get_wf_pols(simulations.simulations[w]['wavefile'], masses[w,s],
+#               inclination=inclinations[w,s], delta_t=config.delta_t)
+#
+#       # Project to detector
+#       tmplt = nrbu.project_waveform(hp, hc, skyloc=(rec_right_ascension[s],
+#           rec_declination[s]), polarization=rec_polarization[s],
+#           detector_name=config.detector_name)
+#
+#       # Resize to the same length as the data
+#       tlen = max(len(tmplt), len(sample))
+#       tmplt.resize(tlen)
+#
+#       # Whiten the best-fit waveform
+#       Tmplt = tmplt.to_frequencyseries()
+#       Tmplt.data /= asd 
+#
+#       tmplt = Tmplt.to_timeseries()
+#       tmplt.data /= pycbc.filter.sigma(tmplt)
+#
+#       sample = pycbc.types.TimeSeries(sample, delta_t=config.delta_t)
+#       sample.data /= pycbc.filter.sigma(sample)
+#
+#       pl.figure()
+#       pl.plot(tmplt.sample_times - tmplt.sample_times[np.argmax(tmplt)],
+#               tmplt, label='tmplt')
+#       pl.plot(sample.sample_times - sample.sample_times[np.argmax(sample)],
+#               sample, label='data')
+#       pl.legend()
+#       pl.title('%f'%matches[w,s])
+#       pl.xlim(-0.15,0.1)
+#       pl.show()
+#
+#       sys.exit()
         # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 

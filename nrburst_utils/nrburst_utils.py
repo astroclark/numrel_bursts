@@ -281,7 +281,6 @@ class configuration:
         self.detector_name=configparser.get('analysis', 'detector-name')
 
         self.nsampls=configparser.getint('parameters', 'nsampls')
-        self.mass_guess=configparser.getfloat('parameters', 'mass_guess')
         self.min_chirp_mass=configparser.getfloat('parameters', 'min-chirp-mass')
         self.max_chirp_mass=configparser.getfloat('parameters', 'max-chirp-mass')
 
