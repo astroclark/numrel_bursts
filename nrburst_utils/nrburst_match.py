@@ -52,6 +52,7 @@ config = nrbu.configuration(cp)
 #
 bounds = dict()
 bounds['Mchirpmin30Hz'] = [-np.inf, config.min_chirp_mass]
+bounds['q'] = [0.999,1.001]
 
 #
 # --- Reconstruction data
@@ -101,8 +102,6 @@ then = timeit.time.time()
 simulations = nrbu.simulation_details(param_bounds=bounds,
         catdir=config.catalog)
 
-simulations.simulations[0]['wavefile'] = '/home/jclark308/GW150914_data/nr_catalog/gatech_hdf5/GATECH0001.h5'
-
 # Useful time/freq samples
 time_axis = np.arange(config.datalen, config.delta_t)
 freq_axis = np.arange(0.5*config.datalen/config.delta_t+1./config.datalen) * 1./config.datalen
@@ -128,7 +127,7 @@ matches = np.zeros(shape=(simulations.nsimulations, len(reconstruction_data)))
 masses  = np.zeros(shape=(simulations.nsimulations, len(reconstruction_data)))
 inclinations  = np.zeros(shape=(simulations.nsimulations, len(reconstruction_data)))
 
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# START XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # XXX: Debugging / Testing
 #
 # Here, we generate a pure-NR waveform and find the best-fitting parameters
@@ -161,7 +160,7 @@ inclinations  = np.zeros(shape=(simulations.nsimulations, len(reconstruction_dat
 #   print mass, inc, rec_polarization[0]
 
 
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# END XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 
 # Loop over waves in NR catalog
@@ -180,17 +179,6 @@ for w in xrange(simulations.nsimulations):
     max_mass = nrbu.mtot_from_mchirp(config.max_chirp_mass,
             simulations.simulations[w]['q'])
 
-    # Starting point for param maximisation
-    mass_guess = nrbu.mtot_from_mchirp(config.mass_guess,
-            simulations.simulations[w]['q']) 
-    mass_guess = (max_mass - min_mass)*np.random.random() + min_mass 
-
-    inclination_guess  = 90*np.random.random()
-
-    init_guess = np.array([mass_guess, inclination_guess])
-
-    print "INITAL GUESS:"
-    print init_guess
 
     for s, sample in enumerate(reconstruction_data):
 
@@ -202,6 +190,15 @@ for w in xrange(simulations.nsimulations):
         #
         # Optimise match over total mass
         #
+
+        # --- Starting point for param maximisation
+        mass_guess = (max_mass - min_mass)*np.random.random() + min_mass 
+        inclination_guess  = 90*np.random.random()
+        init_guess = np.array([mass_guess, inclination_guess])
+
+        print "INITAL GUESS:"
+        print init_guess
+
         then = timeit.time.time()
 
         result = scipy.optimize.fmin(nrbu.mismatch,
@@ -230,7 +227,7 @@ for w in xrange(simulations.nsimulations):
         print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
                 chirp_mass, masses[w,s], inclinations[w, s])
 
-        # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        # START XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
         # XXX: Debugging / Testing
 
 #       from matplotlib import pyplot as pl
@@ -270,22 +267,19 @@ for w in xrange(simulations.nsimulations):
 #       pl.show()
 #
 #       sys.exit()
-        # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        # END XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 
     bestidx=np.argmax(matches[w, :])
 
-    mass1, mass2 = nrbu.component_masses(masses[w,bestidx],
-            simulations.simulations[w]['q'])
-
     print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     print >> sys.stdout, "Best Match:"
 
+    chirp_mass = masses[w,bestidx]*simulations.simulations[bestidx]['eta']**(3./5.)
+
     print >> sys.stdout, "Fit-factor: %.2f"%(matches[w,bestidx])
-    print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f"%(
-            spawaveform.chirpmass(mass1, mass2) / lal.MTSUN_SI, masses[w,bestidx])
-    print >> sys.stdout, "inclination=%.2f, polarization=%.2f"%(
-            inclinations[w, bestidx], polarizations[w, bestidx])
+    print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
+            chirp_mass, masses[w,bestidx], inclinations[w,bestidx])
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Dump data
@@ -293,7 +287,7 @@ for w in xrange(simulations.nsimulations):
 filename=opts.user_tag+'_'+config.algorithm+'_'+gpsnow+'.pickle'
 
 # Dump results and configuration to pickle
-pickle.dump([matches, masses, inclinations, polarizations, config, simulations,
+pickle.dump([matches, masses, inclinations, config, simulations,
     __author__, __version__, __date__], open(filename, "wb"))
 
 
