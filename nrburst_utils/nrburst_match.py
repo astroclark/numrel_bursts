@@ -52,7 +52,6 @@ config = nrbu.configuration(cp)
 #
 bounds = dict()
 bounds['Mchirpmin30Hz'] = [-np.inf, config.min_chirp_mass]
-bounds['q'] = [0.999,1.001]
 
 #
 # --- Reconstruction data
@@ -102,8 +101,6 @@ then = timeit.time.time()
 simulations = nrbu.simulation_details(param_bounds=bounds,
         catdir=config.catalog)
 
-simulations.simulations[0]['wavefile'] = '/home/jclark308/GW150914_data/nr_catalog/gatech_hdf5/GATECH0006.h5'
-
 # Useful time/freq samples
 time_axis = np.arange(config.datalen, config.delta_t)
 freq_axis = np.arange(0.5*config.datalen/config.delta_t+1./config.datalen) * 1./config.datalen
@@ -129,40 +126,6 @@ matches = np.zeros(shape=(simulations.nsimulations, len(reconstruction_data)))
 masses  = np.zeros(shape=(simulations.nsimulations, len(reconstruction_data)))
 inclinations  = np.zeros(shape=(simulations.nsimulations, len(reconstruction_data)))
 
-# START XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-# XXX: Debugging / Testing
-#
-# Here, we generate a pure-NR waveform and find the best-fitting parameters
-# (best fit-factor) to verify that we recover the correct parameters and match
-# when the model matches the data
-
-#   inc = 90*np.random.random()
-#   chirp_mass = config.min_chirp_mass + \
-#           (config.max_chirp_mass-config.min_chirp_mass)*np.random.random()
-#   mass = chirp_mass * simulations.simulations[0]['eta']**(-3./5.)
-#
-#   # Generate the polarisations
-#   hp, hc = nrbu.get_wf_pols(simulations.simulations[0]['wavefile'], mass,
-#           inclination=inc, delta_t=config.delta_t)
-#
-#   # Project to detector
-#   data = nrbu.project_waveform(hp, hc, skyloc=(rec_right_ascension[0], rec_declination[0]),
-#           polarization=rec_polarization[0], detector_name=config.detector_name)
-#
-#   # Resize to the same length as the data
-#   data.resize(config.datalen*config.sample_rate)
-#
-#   # Whiten the template
-#   Data = data.to_frequencyseries()
-#   Data.data /= asd 
-#
-#   reconstruction_data = [Data.to_timeseries().data[:]]
-#
-#   print "INJECTING:"
-#   print mass, inc, rec_polarization[0]
-
-
-# END XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 
 # Loop over waves in NR catalog
@@ -179,12 +142,66 @@ for w in xrange(simulations.nsimulations):
     min_mass = config.min_chirp_mass * simulations.simulations[w]['eta']**(-3./5.)
     max_mass = config.max_chirp_mass * simulations.simulations[w]['eta']**(-3./5.)
 
-    for s, sample in enumerate(reconstruction_data):
 
-        print >> sys.stdout,  '-----------------------------'
-        print >> sys.stdout,  "Evaluating sample waveform %d of %d"%( s,
+    # Check we can generate the polarisations
+    mass_guess = (max_mass - min_mass)*np.random.random() + min_mass 
+    inclination_guess  = 90*np.random.random()
+    try:
+        hp, hc = nrbu.get_wf_pols(simulations.simulations[w]['wavefile'],
+                mass_guess, inclination=inclination_guess, delta_t=config.delta_t)
+    except:
+        print >> sys.stderr, "Polarisation extraction failure, skipping %s"%(
+                simulations.simulations[w]['wavefile'])
+        continue
+
+
+    for s, sampled_waveform in enumerate(reconstruction_data):
+
+
+        # START XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        # XXX: Debugging / Testing
+        #
+        # Here, we generate a pure-NR waveform and find the best-fitting parameters
+        # (best fit-factor) to verify that we recover the correct parameters and match
+        # when the model matches the data
+
+#       inc = 90*np.random.random()
+#       chirp_mass = config.min_chirp_mass + \
+#               (config.max_chirp_mass-config.min_chirp_mass)*np.random.random()
+#       mass = chirp_mass * simulations.simulations[w]['eta']**(-3./5.)
+#
+#       # Generate the polarisations
+#       hp, hc = nrbu.get_wf_pols(simulations.simulations[w]['wavefile'], mass,
+#               inclination=inc, delta_t=config.delta_t)
+#
+#       # Project to detector
+#       data = nrbu.project_waveform(hp, hc, skyloc=(rec_right_ascension[s], rec_declination[s]),
+#               polarization=rec_polarization[s], detector_name=config.detector_name)
+#
+#       # Resize to the same length as the data
+#       data.resize(config.datalen*config.sample_rate)
+#
+#       # Whiten the template
+#       Data = data.to_frequencyseries()
+#       Data.data /= asd 
+#
+#       sampled_waveform = Data.to_timeseries().data[:]
+#
+#       print "INJECTING:"
+#       print mass, inc, rec_polarization[s]
+#
+
+        # END XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
+
+        print >> sys.stdout, '-----------------------------'
+        print >> sys.stdout, "Evaluating sample waveform %d of %d"%( s,
                 len(reconstruction_data) )
-        print >> sys.stdout,  " (NR: [%d/%d])"%(w+1, simulations.nsimulations)
+        print >> sys.stdout, " NR waveform: %d/%d"%(w+1, simulations.nsimulations)
+        print >> sys.stdout, " q=%.2f, a1=%.2f, a2=%.2f"%(
+                simulations.simulations[w]['q'],
+                simulations.simulations[w]['a1'],
+                simulations.simulations[w]['a2'])
 
         #
         # Optimise match over total mass
@@ -208,8 +225,8 @@ for w in xrange(simulations.nsimulations):
                     simulations.simulations[w]['wavefile'],
                     config.detector_name,
                     (min_mass, max_mass),
-                    sample, asd, config.delta_t
-                    ), xtol=1e-10, ftol=1e-10, maxfun=10000,
+                    sampled_waveform, asd, config.delta_t
+                    ), xtol=1e-3, ftol=1e-3, maxfun=10000,
                 full_output=True, retall=True, disp=True)
 
         now = timeit.time.time()
@@ -242,7 +259,7 @@ for w in xrange(simulations.nsimulations):
 #           detector_name=config.detector_name)
 #
 #       # Resize to the same length as the data
-#       tlen = max(len(tmplt), len(sample))
+#       tlen = max(len(tmplt), len(reconstruction_data[s]))
 #       tmplt.resize(tlen)
 #
 #       # Whiten the best-fit waveform
@@ -252,7 +269,8 @@ for w in xrange(simulations.nsimulations):
 #       tmplt = Tmplt.to_timeseries()
 #       tmplt.data /= pycbc.filter.sigma(tmplt)
 #
-#       sample = pycbc.types.TimeSeries(sample, delta_t=config.delta_t)
+#       sample = pycbc.types.TimeSeries(reconstruction_data[s],
+#               delta_t=config.delta_t)
 #       sample.data /= pycbc.filter.sigma(sample)
 #
 #       pl.figure()
@@ -265,7 +283,7 @@ for w in xrange(simulations.nsimulations):
 #       pl.xlim(-0.15,0.1)
 #       pl.show()
 #
-#       sys.exit()
+#        sys.exit()
         # END XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 
@@ -283,7 +301,7 @@ for w in xrange(simulations.nsimulations):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Dump data
 
-filename=opts.user_tag+'_'+config.algorithm+'_'+gpsnow+'.pickle'
+filename=config.detector_name+'_'+opts.user_tag+'_'+config.algorithm+'_'+gpsnow+'.pickle'
 
 # Dump results and configuration to pickle
 pickle.dump([matches, masses, inclinations, config, simulations,
