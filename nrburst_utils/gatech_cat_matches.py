@@ -116,12 +116,12 @@ datalen = 4.0
 # --- Noise Spectrum
 #
 asd_file = \
-        "/home/jclark/Projects/bhextractor/data/noise_curves/early_aligo.dat"
+        "/home/jclark308/Projects/bhextractor/data/noise_curves/early_aligo.dat"
 
 #
 # --- Catalog
 #
-catalog='/home/jclark/Projects/GW150914_data/nr_catalog/gatech_hdf5'
+catalog='/home/jclark308/GW150914_data/nr_catalog/gatech_hdf5'
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Generate The Catalogue

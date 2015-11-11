@@ -102,6 +102,8 @@ then = timeit.time.time()
 simulations = nrbu.simulation_details(param_bounds=bounds,
         catdir=config.catalog)
 
+simulations.simulations[0]['wavefile'] = '/home/jclark308/GW150914_data/nr_catalog/gatech_hdf5/GATECH0006.h5'
+
 # Useful time/freq samples
 time_axis = np.arange(config.datalen, config.delta_t)
 freq_axis = np.arange(0.5*config.datalen/config.delta_t+1./config.datalen) * 1./config.datalen
@@ -174,11 +176,8 @@ for w in xrange(simulations.nsimulations):
     print >> sys.stdout,  "Optimising for total mass for each sampled waveform..."
 
     # Find min/max allowable mass to which we can scale the waveform
-    min_mass = nrbu.mtot_from_mchirp(config.min_chirp_mass,
-            simulations.simulations[w]['q'])
-    max_mass = nrbu.mtot_from_mchirp(config.max_chirp_mass,
-            simulations.simulations[w]['q'])
-
+    min_mass = config.min_chirp_mass * simulations.simulations[w]['eta']**(-3./5.)
+    max_mass = config.max_chirp_mass * simulations.simulations[w]['eta']**(-3./5.)
 
     for s, sample in enumerate(reconstruction_data):
 

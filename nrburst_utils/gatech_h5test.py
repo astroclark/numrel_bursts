@@ -56,10 +56,7 @@ import timeit
 
 then = timeit.time.time()
 
-#file = 'example_SXS_0019.h5'
-#file = 'GATECH0001.h5'
-#file = 'CARDIFF0001.h5'
-file = '/home/jclark/Desktop/h5test/h5_catalog/22/CARDIFF0001.h5'
+file = '/home/jclark308/GW150914_data/nr_catalog/gatech_hdf5/GATECH0006.h5'
 
 f = h5py.File(file, 'r')
 
