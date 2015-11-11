@@ -122,10 +122,9 @@ asd = np.interp(freq_axis, asd_data[:,0], asd_data[:,1])
 # total mass and orientation
 
 # Preallocate
-matches = np.zeros(shape=(simulations.nsimulations, len(reconstruction_data)))
-masses  = np.zeros(shape=(simulations.nsimulations, len(reconstruction_data)))
-inclinations  = np.zeros(shape=(simulations.nsimulations, len(reconstruction_data)))
-
+matches = np.zeros(shape=(simulations.nsimulations, config.nsampls))
+masses  = np.zeros(shape=(simulations.nsimulations, config.nsampls))
+inclinations  = np.zeros(shape=(simulations.nsimulations, config.nsampls))
 
 
 # Loop over waves in NR catalog
@@ -292,7 +291,7 @@ for w in xrange(simulations.nsimulations):
     print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     print >> sys.stdout, "Best Match:"
 
-    chirp_mass = masses[w,bestidx]*simulations.simulations[bestidx]['eta']**(3./5.)
+    chirp_mass = masses[w,bestidx]*simulations.simulations[w]['eta']**(3./5.)
 
     print >> sys.stdout, "Fit-factor: %.2f"%(matches[w,bestidx])
     print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
