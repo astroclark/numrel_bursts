@@ -34,6 +34,7 @@ import lal
 from pylal import spawaveform
 import pycbc.types
 from pycbc.waveform import get_td_waveform
+from pycbc.waveform import utils as wfutils
 import pycbc.filter
 from pycbc import pnutils
 
@@ -110,18 +111,18 @@ maxMass = 500.0
 # --- Time Series Config
 #
 delta_t = 1./4096
-datalen = 4.0
+datalen = 4
 
 #
 # --- Noise Spectrum
 #
 asd_file = \
-        "/home/jclark308/Projects/bhextractor/data/noise_curves/early_aligo.dat"
+        "/home/jclark/Projects/GW150914_data/noise_curves/early_aligo.dat"
 
 #
 # --- Catalog
 #
-catalog='/home/jclark308/GW150914_data/nr_catalog/gatech_hdf5'
+catalog='/home/jclark/Projects/GW150914_data/nr_catalog/gatech_hdf5'
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Generate The Catalogue
@@ -141,8 +142,6 @@ simulations = \
                 catdir=catalog)
 
 asd_data = np.loadtxt(asd_file)
-
-sys.exit()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Match Calculations
@@ -172,12 +171,13 @@ for m,mass in enumerate(masses):
     "Extracting and generating mass %d of %d (%.2f)"%(m, len(masses), mass)
 
     # --- Generate the polarisations
-    hplus_NR, hcross_NR = \
-            nrbu.get_wf_pols(simulations.simulations[0]['wavefile'], mass,
-                    inclination=inc, delta_t=delta_t, f_lower=30.00001)
+    hplus_NR, hcross_NR = nrbu.get_wf_pols(
+            simulations.simulations[0]['wavefile'], mass, inclination=inc,
+            delta_t=delta_t, f_lower=30.00001)
 
     # --- Generate the approx waveform to this mass
-    mass1, mass2 = nrbu.component_masses(mass, simulations.simulations[0]['q'])
+    mass1, mass2 = pnutils.mtotal_eta_to_mass1_mass2(mass,
+            simulations.simulations[0]['eta'])
 
     # Estimate ffinal 
     chi = pnutils.phenomb_chi(mass1, mass2,
@@ -185,6 +185,7 @@ for m,mass in enumerate(masses):
     ffinal = pnutils.get_final_freq(approx, mass1, mass2, 
             simulations.simulations[0]['spin1z'],simulations.simulations[0]['spin2z'])
 
+    hplus_NR.resize(datalen/delta_t)
     Hf = hplus_NR.to_frequencyseries()
     f_lower = 0.8*Hf.sample_frequencies.data[ np.argmax(abs(Hf)) ]
 
@@ -197,26 +198,22 @@ for m,mass in enumerate(masses):
             f_lower=f_lower,
             delta_t=delta_t)
 
-    hplus_approx.data = nrbu.taper(hplus_approx.data,
-            delta_t=hplus_approx.delta_t)
-
+    hplus_approx = wfutils.taper_timeseries(hplus_approx, 'TAPER_START')
  
     # Make the timeseries consistent lengths
-    tlen = max(len(hplus_NR), len(hplus_approx))
-    hplus_approx.resize(tlen)
-    hplus_NR.resize(tlen)
+    hplus_approx.resize(datalen / delta_t)
 
     # Interpolate the ASD to the waveform frequencies (this is convenient so that we
     # end up with a PSD which overs all frequencies for use in the match calculation
     # later
-    asd = np.interp(hplus_NR.to_frequencyseries().sample_frequencies,
+    asd = np.interp(hplus_approx.to_frequencyseries().sample_frequencies,
             asd_data[:,0], asd_data[:,1])
 
 
     # Now insert ASD into a pycbc frequency series so we can use
     # pycbc.filter.match() later
     noise_psd = pycbc.types.FrequencySeries(asd**2, delta_f =
-            hplus_NR.to_frequencyseries().delta_f)
+            hplus_approx.to_frequencyseries().delta_f)
 
 #       from pycbc.psd import aLIGOZeroDetHighPower
 #       delta_f = 1.0 / hplus_approx.duration
