@@ -92,6 +92,7 @@ bounds['spin2z'] = [-0.59, -0.61]
 
 inc = 0 # inclination
 approx='SEOBNRv2'
+f_low_approx=20
 
 #
 #    4) RO3_D10_q1.50_a0.60_oth.090_M120
@@ -110,24 +111,25 @@ maxMass = 500.0
 #
 # --- Time Series Config
 #
-delta_t = 1./4096
+delta_t = 1./2048
 datalen = 4
 
 #
 # --- Noise Spectrum
 #
 asd_file = \
-        "/home/jclark/Projects/GW150914_data/noise_curves/early_aligo.dat"
+        "/home/jclark308/GW150914_data/noise_curves/early_aligo.dat"
 
 #
 # --- Catalog
 #
-catalog='/home/jclark/Projects/GW150914_data/nr_catalog/gatech_hdf5'
+catalog='/home/jclark308/GW150914_data/nr_catalog/gatech_hdf5'
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Generate The Catalogue
 
 
+distance = 500
 plot_snr = 8
 
 #
@@ -160,7 +162,7 @@ asd_data = np.loadtxt(asd_file)
 
 # Set up the Masses we're going to study
 masses = np.linspace(simulations.simulations[0]['Mmin30Hz'], maxMass,
-        nMassPoints)
+        nMassPoints) + 5
 
 # matches is going to be a list of tuples: (mass, match)
 matches = []
@@ -170,12 +172,9 @@ f, ax = pl.subplots(nrows = len(masses), ncols=2, figsize=(15,15))
 for m,mass in enumerate(masses):
     "Extracting and generating mass %d of %d (%.2f)"%(m, len(masses), mass)
 
-    # --- Generate the polarisations
-    hplus_NR, hcross_NR = nrbu.get_wf_pols(
-            simulations.simulations[0]['wavefile'], mass, inclination=inc,
-            delta_t=delta_t, f_lower=30.00001)
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Common params
 
-    # --- Generate the approx waveform to this mass
     mass1, mass2 = pnutils.mtotal_eta_to_mass1_mass2(mass,
             simulations.simulations[0]['eta'])
 
@@ -184,24 +183,71 @@ for m,mass in enumerate(masses):
             simulations.simulations[0]['spin1z'],simulations.simulations[0]['spin2z'])
     ffinal = pnutils.get_final_freq(approx, mass1, mass2, 
             simulations.simulations[0]['spin1z'],simulations.simulations[0]['spin2z'])
+    #upp_bound = 1.5*ffinal
+    upp_bound = 0.5/delta_t
 
-    hplus_NR.resize(datalen/delta_t)
-    Hf = hplus_NR.to_frequencyseries()
-    f_lower = 0.8*Hf.sample_frequencies.data[ np.argmax(abs(Hf)) ]
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # NUMERICAL RELATIVITY
 
-    hplus_approx, _ = get_td_waveform(approximant=approx,
-            distance=100,
+    # --- Generate the polarisations
+    hplus_NR, hcross_NR = nrbu.get_wf_pols(
+            simulations.simulations[0]['wavefile'], mass, inclination=inc,
+            delta_t=delta_t, f_lower=25 * min(masses) / mass, distance=distance)
+
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # APPROXIMANT 
+    hplus_approx, hcross_approx = get_td_waveform(approximant=approx,
+            distance=distance,
             mass1=mass1,
             mass2=mass2,
+            spin1x=simulations.simulations[0]['spin1x'],
+            spin2x=simulations.simulations[0]['spin2x'],
+            spin1y=simulations.simulations[0]['spin1y'],
+            spin2y=simulations.simulations[0]['spin2y'],
             spin1z=simulations.simulations[0]['spin1z'],
             spin2z=simulations.simulations[0]['spin2z'],
-            f_lower=f_lower,
+            inclination=inc,
+            f_lower=f_low_approx * min(masses)/mass,
             delta_t=delta_t)
 
     hplus_approx = wfutils.taper_timeseries(hplus_approx, 'TAPER_START')
+    hcross_approx = wfutils.taper_timeseries(hcross_approx, 'TAPER_START')
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # MATCH CALCULATION 
  
     # Make the timeseries consistent lengths
-    hplus_approx.resize(datalen / delta_t)
+    tlen = max(len(hplus_approx), datalen/delta_t)
+    hplus_approx.resize(tlen)
+    hplus_NR.resize(tlen)
+    hcross_approx.resize(tlen)
+    hcross_NR.resize(tlen)
+
+    
+    # ***********************
+    # Errors
+    # Convert to amplitude/phase
+
+    dAmpbyAmp = 0.01 # XXX Placeholder value
+    dphi = 0.25
+
+    amp_NR   = wfutils.amplitude_from_polarizations(hplus_NR, hcross_NR)
+    phi_NR = wfutils.phase_from_polarizations(hplus_NR, hcross_NR)
+
+    amp_NR_deltaUpp = amp_NR + dAmpbyAmp*amp_NR*np.random.random()
+    phi_NR_deltaUpp = phi_NR + dphi
+
+    amp_NR_deltaLow = amp_NR - dAmpbyAmp*amp_NR 
+    phi_NR_deltaLow = phi_NR - dphi
+
+    hplus_NR_deltaLow = \
+            pycbc.types.TimeSeries(np.real(amp_NR_deltaLow*np.exp(1j*phi_NR_deltaLow)),
+                    delta_t=hplus_NR.delta_t)
+    hplus_NR_deltaUpp = \
+            pycbc.types.TimeSeries(np.real(amp_NR_deltaUpp*np.exp(1j*phi_NR_deltaUpp)),
+                    delta_t=hplus_NR.delta_t)
+
 
     # Interpolate the ASD to the waveform frequencies (this is convenient so that we
     # end up with a PSD which overs all frequencies for use in the match calculation
@@ -215,46 +261,42 @@ for m,mass in enumerate(masses):
     noise_psd = pycbc.types.FrequencySeries(asd**2, delta_f =
             hplus_approx.to_frequencyseries().delta_f)
 
-#       from pycbc.psd import aLIGOZeroDetHighPower
-#       delta_f = 1.0 / hplus_approx.duration
-#       flen = tlen/2 + 1
-#       noise_psd = aLIGOZeroDetHighPower(flen, delta_f, 10) 
-    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-#       Hf = abs(hplus_approx.to_frequencyseries())
-#       inband = noise_psd.sample_frequencies.data>30
-#       upp_bound = \
-#               noise_psd.sample_frequencies[inband][np.argwhere(Hf.data[inband]<1e-2*Hf[inband].max())[0]]
-    #upp_bound = 0.5*1./delta_t
-    upp_bound = 1.5*ffinal
 
     match, _ = pycbc.filter.match(hplus_approx, hplus_NR,
             low_frequency_cutoff=30.0, psd=noise_psd,
             high_frequency_cutoff=upp_bound)
 
+    match_deltaUpp, _ = pycbc.filter.match(hplus_NR, hplus_NR_deltaUpp,
+            low_frequency_cutoff=30.0, psd=noise_psd,
+            high_frequency_cutoff=upp_bound) 
+
+    match_deltaLow, _ = pycbc.filter.match(hplus_NR, hplus_NR_deltaLow,
+            low_frequency_cutoff=30.0, psd=noise_psd,
+            high_frequency_cutoff=upp_bound)
+
+    mismatch = 100*(1-match)
+    mismatch_deltaUpp = 100*(1-match_deltaUpp)
+    mismatch_deltaLow = 100*(1-match_deltaLow)
+
     # ------------------------------------------------------------------
     # DIAGNOSTIC PLOTS
 
     print "~~~~~~~~~~~~~~~~~~~~~~~"
-    print "Mass, mismatch (%)"
-    print mass, 100*(1-match)
+    print "Mass: %.2f, mismatch: %.2f +/- %.2e (%%)"%(mass, mismatch,
+            abs(0.5*(mismatch_deltaUpp-mismatch_deltaLow)))
 
     # Normalise to unit SNR
-    hplus_approx.data[:] /= pycbc.filter.sigma(hplus_approx,
-            psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
-    sigma_approx = pycbc.filter.sigma(hplus_approx,
-            psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
-    print 'sigma approx', sigma_approx
+    snr_approx_100 = pycbc.filter.sigma(hplus_approx, psd=noise_psd,
+            low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
+    hplus_approx.data[:] /= snr_approx_100
+    print 'SNR of approximant @ %d Mpc=%.2f'%(distance,snr_approx_100)
 
-    hplus_NR.data[:] /= pycbc.filter.sigma(hplus_NR,
+    snr_NR_100 = pycbc.filter.sigma(hplus_NR,
             psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
-    sigma_NR = pycbc.filter.sigma(hplus_NR,
-            psd=noise_psd, low_frequency_cutoff=30, high_frequency_cutoff=upp_bound)
-    print 'sigma NR', sigma_NR
+    hplus_NR.data[:] /= snr_NR_100
+    print 'SNR of NR @ %d Mpc=%.2f'%(distance,snr_NR_100)
 
-    Hplus_approx = hplus_approx.to_frequencyseries()
-    Hplus_NR = hplus_NR.to_frequencyseries()
+    # Tdomain
 
     maxidx = np.argmax(hplus_NR)
     ax[m][0].plot(hplus_NR.sample_times -
@@ -269,16 +311,15 @@ for m,mass in enumerate(masses):
     ax[m][0].set_title('M$_{\mathrm{tot}}$=%.2f M$_{\odot}$, mismatch=%.2f %%'%(
         mass, 100*(1-match)))
 
-#        ax[m][0].legend(loc='lower left')
-
-    ax[m][0].set_xlabel('Frequency [Hz]')
+    ax[m][0].set_xlabel('Time [s]')
     ax[m][0].set_ylabel('h(t) [arb units]')
 
 
-    ax[m][0].set_xlim(-2, 0.25)
+    ax[m][0].set_xlim(-0.25, 0.1)
 
     # Fdomain
-
+    Hplus_approx = hplus_approx.to_frequencyseries()
+    Hplus_NR = hplus_NR.to_frequencyseries()
     ax[m][1].loglog(Hplus_NR.sample_frequencies,
                plot_snr*2*abs(Hplus_NR)*np.sqrt(Hplus_NR.sample_frequencies),
                label='NR')
@@ -293,7 +334,7 @@ for m,mass in enumerate(masses):
     ax[m][1].set_title('M$_{\mathrm{tot}}$=%.2f M$_{\odot}$, mismatch=%.2f %%'%(
         mass, 100*(1-match)))
 
-    ax[m][1].legend(loc='lower right')
+    ax[m][1].legend(loc='upper right')
 
     ax[m][1].axvline(30, color='r')
     ax[m][1].axvline(upp_bound, color='r')
