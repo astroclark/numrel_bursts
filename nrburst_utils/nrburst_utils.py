@@ -123,7 +123,7 @@ def effspin_with_L(mass1, spin1x, spin1y, spin1z,
 
         return np.dot(S_eff, L_hat), np.cross(S_eff, L_hat)
     else:
-        return np.nan, np.nan
+        return 0.0, 0.0
 
 def spin_angle(spin1x, spin1y, spin1z, spin2x, spin2y, spin2z):
     """
@@ -141,16 +141,13 @@ def spin_angle(spin1x, spin1y, spin1z, spin2x, spin2y, spin2z):
     else:
         return 0.0
 
-    if np.linalg.norm(a1) > lal.EPSILON0_SI and np.linalg.norm(a2) > lal.EPSILON0_SI:
-
-        if np.dot(a1,a2)-1 < lal.EPSILON0_SI:
-            theta12 = 0.0
-        elif np.dot(a1,a2)+1 < lal.EPSILON0_SI :
-            theta12 = lal.PI
-        else:
-            theta12 = np.arccos(np.dot(a1, a2))
+    if np.dot(a1,a2)-1 < lal.EPSILON0_SI:
+        theta12 = 0.0
+    elif np.dot(a1,a2)+1 < lal.EPSILON0_SI :
+        theta12 = lal.PI
     else:
-        theta12 = np.nan
+        theta12 = np.arccos(np.dot(a1, a2))
+
     return theta12 / lal.PI_180
 
 
@@ -172,7 +169,7 @@ def totspin_dot_L(mass1, spin1x, spin1y, spin1z,
 
         return SdotL, np.arccos(SdotL) / lal.PI_180
     else:
-        return np.nan, np.nan
+        return 0.0, 0.0
 
 
 
