@@ -27,12 +27,12 @@ import subprocess
 from optparse import OptionParser
 import cPickle as pickle
 import lal
-from pylal import spawaveform
 import numpy as np
 import timeit
 from matplotlib import pyplot as pl
 import triangle
 
+from pycbc import pnutils
 import nrburst_utils as nrbu
 
 pl.rcParams.update({'axes.labelsize': 16})
@@ -203,7 +203,7 @@ __version__ = "git id %s" % git_version_id
 
 opts, args = parser()
 
-matches, masses, config, simulations, _, _, _ = pickle.load(
+matches, masses, inclinations, config, simulations, _, _, _ = pickle.load(
         open(args[0], 'rb'))
 
 
@@ -211,12 +211,11 @@ matches, masses, config, simulations, _, _, _ = pickle.load(
 if opts.user_tag is None:
     user_tag=args[0].strip('.pickle')
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Manipulation and derived FOMs
 #
 
-# Remove zero-match waveforms:
+# Remove NR waveforms in which the mean match was less than some threshold
 mean_matches = np.mean(matches, axis=1)
 
 nonzero_match = mean_matches>opts.match_threshold
@@ -227,7 +226,6 @@ masses = masses[nonzero_match]
 simulations_goodmatch = np.array(simulations.simulations)[nonzero_match]
 nsimulations_goodmatch = len(simulations_goodmatch)
 
-
 # Continue
 mean_matches = np.mean(matches, axis=1)
 median_matches = np.median(matches, axis=1)
@@ -236,70 +234,151 @@ std_matches = np.std(matches, axis=1)
 median_masses = np.median(masses, axis=1)
 std_masses = np.std(masses, axis=1)
 
+# --- Preallocate
 mass_ratios = np.zeros(nsimulations_goodmatch)
-chis = np.zeros(shape=(nsimulations_goodmatch, config.nsampls))
+sym_mass_ratios = np.zeros(nsimulations_goodmatch)
 chirp_masses = np.zeros(shape=(nsimulations_goodmatch, config.nsampls))
 
-theta1L = np.zeros(nsimulations_goodmatch)
-theta2L = np.zeros(nsimulations_goodmatch)
-thetaSL = np.zeros(nsimulations_goodmatch)
+a1dotL      = np.zeros(nsimulations_goodmatch)
+a2dotL      = np.zeros(nsimulations_goodmatch)
+a1crossL    = np.zeros(nsimulations_goodmatch)
+a2crossL    = np.zeros(nsimulations_goodmatch)
+SeffdotL    = np.zeros(shape=(nsimulations_goodmatch, config.nsampls))
+SeffcrossL  = np.zeros(shape=(nsimulations_goodmatch, config.nsampls))
+theta_a12   = np.zeros(nsimulations_goodmatch)
+SdotL       = np.zeros(shape=(nsimulations_goodmatch, config.nsampls))
+theta_SdotL = np.zeros(shape=(nsimulations_goodmatch, config.nsampls))
 
 for s, sim in enumerate(simulations_goodmatch):
 
     mass_ratios[s] = sim['q']
+    sym_mass_ratios[s] = sim['eta']
 
-    spin1z = nrbu.cartesian_spins(sim['a1'], sim['th1L'])
-    spin2z = nrbu.cartesian_spins(sim['a2'], sim['th2L'])
+    a1dotL[s], a1crossL_vec = nrbu.a_with_L(sim['spin1x'], sim['spin1y'], sim['spin1z'])
+    a2dotL[s], a2crossL_vec = nrbu.a_with_L(sim['spin2x'], sim['spin2y'], sim['spin2z'])
 
-    if np.isnan(sim['th1L']): theta1L[s]=0.0
-    else: theta1L[s]=sim['th1L']
+    a1crossL[s] = np.linalg.norm(a1crossL_vec)
+    a2crossL[s] = np.linalg.norm(a2crossL_vec)
 
-    if np.isnan(sim['th2L']): theta2L[s]=0.0
-    else: theta2L[s]=sim['th2L']
-
-    if np.isnan(sim['thSL']): theta1L[s]=0.0
-    else: thetaSL[s]=sim['thSL']
-
+    theta_a12[s] = nrbu.spin_angle(sim['spin1x'], sim['spin1y'], sim['spin1z'],
+            sim['spin2x'], sim['spin2y'], sim['spin2z'])
 
     for n in xrange(config.nsampls):
 
-        mass1, mass2 = nrbu.component_masses(masses[s, n], mass_ratios[s])
+        chirp_masses[s,n] = masses[s,n] * sim['eta']**(3./5) 
+        mass1, mass2 = pnutils.mtotal_eta_to_mass1_mass2(masses[s,n],
+                sim['eta'])
 
-        chirp_masses[s, n] = spawaveform.chirpmass(mass1, mass2) \
-                / lal.MTSUN_SI
-        chis[s, n] = spawaveform.computechi(mass1, mass2, spin1z, spin2z)
+        SeffdotL[s,n], SeffcrossL_vec = nrbu.effspin_with_L(
+                mass1, sim['spin1x'], sim['spin1y'], sim['spin1z'], 
+                mass2, sim['spin2x'], sim['spin1y'], sim['spin1z']
+                )
+        SeffcrossL[s,n] = np.linalg.norm(SeffcrossL_vec)
+
+        SdotL[s,n], theta_SdotL[s,n] = nrbu.totspin_dot_L(
+                mass1, sim['spin1x'], sim['spin1y'], sim['spin1z'], 
+                mass2, sim['spin2x'], sim['spin1y'], sim['spin1z']
+                )
 
 median_chirp_masses = np.median(chirp_masses, axis=1)
-std_chirp_masses = np.std(chirp_masses, axis=1)
+std_chirp_masses    = np.std(chirp_masses, axis=1)
 
-median_chis = np.median(chis, axis=1)
-std_chis = np.std(chis, axis=1)
+median_SeffdotL = np.median(SeffdotL, axis=1)
+std_SeffdotL    = np.std(SeffdotL, axis=1)
+
+median_SeffcrossL = np.median(SeffcrossL, axis=1)
+std_SeffcrossL    = np.std(SeffcrossL, axis=1)
+
+median_SdotL = np.median(SdotL, axis=1)
+std_SdotL    = np.std(SdotL, axis=1)
+
+median_theta_SdotL = np.median(theta_SdotL, axis=1)
+std_theta_SdotL    = np.std(theta_SdotL, axis=1)
 
 matchsort = np.argsort(median_matches)
-print "~~~~~~~~~~~~~~~~~"
+print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 print "Summary for %s"%args[0]
 print ""
-print "   * Match: %f +/- %f"%(median_matches[matchsort][-1],
+print "   * Highest (median) Match: %f +/- %f"%(median_matches[matchsort][-1],
         std_matches[matchsort][-1])
+print "   * Waveform: %s"%(
+        simulations_goodmatch[matchsort][-1]['wavefile'].split('/')[-1])
+print "   * mass ratio: %f"%(mass_ratios[matchsort][-1])
 print "   * total mass: %f +/- %f"%(median_masses[matchsort][-1],
         std_masses[matchsort][-1])
 print "   * chirp mass: %f +/- %f"%(median_chirp_masses[matchsort][-1],
         std_chirp_masses[matchsort][-1])
-print "   * eff spin: %f +/- %f"%(median_chis[matchsort][-1], std_chis[matchsort][-1])
+print "   * |a1|: %f, |a2|=%f"%(simulations_goodmatch[matchsort][-1]['a1'],
+        simulations_goodmatch[matchsort][-1]['a2'])
+print "   * a1.L: %f, a2.L=%f"%(a1dotL[matchsort][-1], a2dotL[matchsort][-1])
+print "   * a1 x L: %f, a2 x L=%f"%(a1crossL[matchsort][-1],
+        a2crossL[matchsort][-1])
+print "   * theta12=%f"%(theta_a12[matchsort][-1])
+print "   * S_eff.L=%f +/- %f"%(median_SeffdotL[matchsort][-1],
+        std_SeffdotL[matchsort][-1])
+print "   * |S_eff x L|=%f +/- %f"%(median_SeffcrossL[matchsort][-1],
+        std_SeffcrossL[matchsort][-1])
+print "   * S.L=%f +/- %f"%(median_SdotL[matchsort][-1],
+        std_SdotL[matchsort][-1])
+
 
 if opts.no_plot: sys.exit(0)
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SCATTER PLOTS
 
-# --- Mass vs thSL Scatter plot
-f, ax = scatter_plot(param1=median_masses, param2=thetaSL,
+print >> sys.stdout, "Plotting..."
+
+# --- Mass vs a1.L Scatter plot
+f, ax = scatter_plot(param1=median_masses, param2=a1dotL,
         matches=median_matches, param1err=std_masses, param2err=None, 
         label1='Total Mass [M$_{\odot}$]',
-        label2=r'$\theta_{\mathrm{S,L}}$ ($\hat{S}_{\mathrm{tot}} . \hat{L}$) [deg]')
+        label2=r'$\hat{a}_1 . \hat{L}$')
 ax.set_title(user_tag)
 f.tight_layout()
-f.savefig("%s_totalmass-thetaSL.png"%user_tag)
+f.savefig("%s_totalmass-a1dotL.png"%user_tag)
 
+# --- Mass vs a2.L Scatter plot
+f, ax = scatter_plot(param1=median_masses, param2=a2dotL,
+        matches=median_matches, param1err=std_masses, param2err=None, 
+        label1='Total Mass [M$_{\odot}$]',
+        label2=r'$\hat{a}_2 . \hat{L}$')
+ax.set_title(user_tag)
+f.tight_layout()
+f.savefig("%s_totalmass-a2dotL.png"%user_tag)
+
+# --- Mass vs |a1xL| Scatter plot
+f, ax = scatter_plot(param1=median_masses, param2=a1crossL,
+        matches=median_matches, param1err=std_masses, param2err=None, 
+        label1='Total Mass [M$_{\odot}$]',
+        label2=r'$|\hat{a}_1 \times \hat{L}|$')
+ax.set_title(user_tag)
+f.tight_layout()
+f.savefig("%s_totalmass-a1crossL.png"%user_tag)
+
+# --- Mass vs |a2xL| Scatter plot
+f, ax = scatter_plot(param1=median_masses, param2=a2crossL,
+        matches=median_matches, param1err=std_masses, param2err=None, 
+        label1='Total Mass [M$_{\odot}$]',
+        label2=r'$|\hat{a}_2 \times \hat{L}|$')
+ax.set_title(user_tag)
+f.tight_layout()
+f.savefig("%s_totalmass-a2crossL.png"%user_tag)
+
+
+# --- Mass vs theta12 Scatter plot
+f, ax = scatter_plot(param1=median_masses, param2=theta_a12,
+        matches=median_matches, param1err=std_masses, param2err=None, 
+        label1='Total Mass [M$_{\odot}$]',
+        label2=r'$\theta_{1,2}$ [deg]')
+ax.set_title(user_tag)
+f.tight_layout()
+f.savefig("%s_totalmass-theta_a12.png"%user_tag)
+
+
+pl.show()
+
+sys.exit()
 
 # --- theta1 vs theta2 Scatter plot
 f, ax = scatter_plot(param1=theta1L, param2=theta2L,
