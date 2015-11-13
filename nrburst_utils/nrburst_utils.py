@@ -63,6 +63,8 @@ global __param_names__
 __param_names__ = ['Mchirpmin30Hz', 'Mmin30Hz', 'a1', 'a2', 'eta', 'q',
 'spin1x', 'spin1y', 'spin1z', 'spin2x', 'spin2y', 'spin2z']
 
+global __metadata_ndecimals__ # number of decimal places to retain in metadata
+__metadata_ndecimals__ = 3
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #
@@ -94,14 +96,24 @@ def extract_wave(inwave, datalen=4.0, sample_rate = 4096):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Derived physical quantities
 
+def a_vec(spinx, spiny, spinz):
+
+    a = np.array([spinx, spiny, spinz])
+    a = np.around(a,decimals=__metadata_ndecimals__)
+    anorm = np.linalg.norm(a)
+
+    return a, anorm
+
 def a_with_L(spinx, spiny, spinz):
     """
     Return the alignment of spin vector with angular momentum:
     
     dot([spinx, spiny, spinz], [0, 0, 1]), cross(...)
     """
-    return (np.dot(np.array([spinx, spiny, spinz]), np.array([0, 0, 1])),
-            np.cross(np.array([spinx, spiny, spinz]), np.array([0, 0, 1])))
+    a, anorm = a_vec(spinx, spiny, spinz)
+    Lhat = np.array([0,0,1])
+
+    return np.dot(a, Lhat), np.cross(a, Lhat)
 
 def effspin_with_L(mass1, spin1x, spin1y, spin1z, 
         mass2, spin2x, spin2y, spin2z):
@@ -109,17 +121,41 @@ def effspin_with_L(mass1, spin1x, spin1y, spin1z,
     Return dot and cross products of effective spin vector with angular momentum
     """
 
+    L_hat = np.array([0, 0, 1])
+
+    mass1_normed = mass1/(mass1+mass2)
+    mass2_normed = mass2/(mass1+mass2)
+
     mass_ratio = mass1 / mass2
     
-    a1 = np.array([spin1x, spin1y, spin1z])
-    a2 = np.array([spin2x, spin2y, spin2z])
+    a1, a1norm = a_vec(spin1x, spin1y, spin1z)
+    if a1norm==0:
+        return 0.0, 0.0
 
-    if np.linalg.norm(a1) > lal.EPSILON0_SI and np.linalg.norm(a2) > lal.EPSILON0_SI:
-        S1 = a1*mass1**2
-        S2 = a2*mass2**2
-        S_eff = (1.0 + 1.0/mass_ratio)*S1 + (1.0+mass_ratio)*S2
-        S_eff /= np.linalg.norm(S_eff)
-        L_hat = np.array([0, 0, 1])
+    a2, a2norm = a_vec(spin2x, spin2y, spin2z)
+    if a2norm==0:
+        return 0.0, 0.0
+
+    S1 = a1*mass1_normed**2
+    S2 = a2*mass2_normed**2
+    S_eff = (1.0 + 1.0/mass_ratio)*S1 + (1.0+mass_ratio)*S2
+    S_effnorm = np.linalg.norm(S_eff)
+
+    if S_effnorm > 1:
+        print "WHAT?"
+        print S_eff, L_hat
+        print a1
+        print a2
+        print mass1
+        print mass2
+        sys.exit(-1)
+
+    if np.dot(S_eff, L_hat)>1:
+        print "WHAT?"
+        print S_eff, L_hat
+        sys.exit(-1)
+
+    if S_effnorm > 0:
 
         return np.dot(S_eff, L_hat), np.cross(S_eff, L_hat)
     else:
@@ -129,21 +165,19 @@ def spin_angle(spin1x, spin1y, spin1z, spin2x, spin2y, spin2z):
     """
     Return angle (in degrees) subtended by spin vectors
     """
-    a1 = np.array([spin1x, spin1y, spin1z]) 
-    if a1.any() > lal.EPSILON0_SI:
-        a1 /= np.linalg.norm(a1)
-    else:
+    a1, a1norm = a_vec(spin1x, spin1y, spin1z)
+    if a1norm==0:
         return 0.0
+    a1 /= a1norm
 
-    a2 = np.array([spin2x, spin2y, spin2z]) 
-    if a2.any() > lal.EPSILON0_SI:
-        a2 /= np.linalg.norm(a2)
-    else:
+    a2, a2norm = a_vec(spin2x, spin2y, spin2z)
+    if a2norm==0:
         return 0.0
+    a2 /= a2norm
 
-    if abs(np.dot(a1,a2)-1) < lal.EPSILON0_SI:
+    if np.around(np.dot(a1,a2), decimals=__metadata_ndecimals__)==1:
         theta12 = 0.0
-    elif abs(np.dot(a1,a2)+1) < lal.EPSILON0_SI :
+    elif np.around(np.dot(a1,a2), decimals=__metadata_ndecimals__)==-1:
         theta12 = lal.PI
     else:
         theta12 = np.arccos(np.dot(a1, a2))
@@ -160,12 +194,18 @@ def totspin_dot_L(mass1, spin1x, spin1y, spin1z,
     a1 = np.array([spin1x, spin1y, spin1z])
     a2 = np.array([spin2x, spin2y, spin2z])
 
-    if np.linalg.norm(a1) > lal.EPSILON0_SI and np.linalg.norm(a2) > lal.EPSILON0_SI:
-        S1 = a1*mass1**2
-        S2 = a2*mass2**2
-        S = S1 + S2
+    # XXX: hdf5 metadata is apparently imprecise
+    a1 = np.around(a1,decimals=__metadata_ndecimals__)
+    a2 = np.around(a2,decimals=__metadata_ndecimals__)
+
+    S1 = a1*mass1**2
+    S2 = a2*mass2**2
+    S = S1 + S2
+
+    if np.linalg.norm(S) > 0.0:
+
         L_hat = np.array([0, 0, 1])
-        SdotL = np.dot(S, L_hat) / np.linalg.norm(S)
+        SdotL = np.dot(S, L_hat)/np.linalg.norm(S)
 
         return SdotL, np.arccos(SdotL) / lal.PI_180
     else:

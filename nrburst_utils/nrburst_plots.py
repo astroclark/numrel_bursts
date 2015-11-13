@@ -56,28 +56,6 @@ def parser():
 
     return opts, args
 
-def make_labels(simulations):
-    """
-    Return a list of strings with suitable labels for e.g., box plots
-    """
-
-    labels=[]
-    for sim in simulations:
-
-        # check nans
-        vals = []
-        for val in [sim['q'], sim['a1'], sim['a2'], sim['th1L'], sim['th2L']]:
-            if np.isnan(val):
-                val = 0.0
-            vals.append(val)
-
-        labelstr = \
-                r"$q=%.2f$, $a_1=%.2f$, $a_2=%.2f$, $\theta_1=%.2f$, $\theta_2=%.2f$"%(
-                        vals[0], vals[1], vals[2], vals[3], vals[4])
-        labels.append(labelstr)
-
-    return labels
-
 def scatter_plot(param1, param2, matches, param1err=None, param2err=None,
         label1='x', label2='y'):
     """
@@ -119,7 +97,33 @@ def scatter_plot(param1, param2, matches, param1err=None, param2err=None,
 
     return f, ax
 
-def matchboxes(matches, simulations):
+def make_labels(simulations, median_masses):
+    """
+    Return a list of strings with suitable labels for e.g., box plots
+    """
+
+    labels=[]
+    for s,sim in enumerate(simulations):
+
+        mass1, mass2 = pnutils.mtotal_eta_to_mass1_mass2(median_masses[s],
+                sim['eta'])
+
+        SdotL, theta_SdotL = nrbu.totspin_dot_L(
+                mass1, sim['spin1x'], sim['spin1y'], sim['spin1z'], 
+                mass2, sim['spin2x'], sim['spin2y'], sim['spin2z']
+                )
+        theta_a12 = nrbu.spin_angle(sim['spin1x'], sim['spin1y'], sim['spin1z'],
+                sim['spin2x'], sim['spin2y'], sim['spin2z'])
+
+        labelstr = \
+                r"$q=%.2f$, $a_1=%.2f$, $a_2=%.2f$, $\theta_{1,2}=%.2f$, $\theta_{\mathrm{\hat{S},\hat{L}}}=%.2f$"%(
+                        sim['q'], sim['a1'], sim['a2'], theta_a12, theta_SdotL)
+        labels.append(labelstr)
+
+    return labels
+
+
+def matchboxes(matches, simulations, median_masses):
     """
     Build a (hideous) box plot to show individual waveform match results from
     BayesWave.  Since we're optimising over mass, this is fitting-factor.
@@ -143,7 +147,7 @@ def matchboxes(matches, simulations):
 
     ax.set_xlim(0.8,1.0)
 
-    ylabels=make_labels(np.array(simulations)[match_sort])
+    ylabels=make_labels(np.array(simulations)[match_sort], median_masses)
     ax.set_yticklabels(ylabels)#, rotation=90)
 
     f.tight_layout()
@@ -273,6 +277,7 @@ for s, sim in enumerate(simulations_goodmatch):
                 mass1, sim['spin1x'], sim['spin1y'], sim['spin1z'], 
                 mass2, sim['spin2x'], sim['spin2y'], sim['spin2z']
                 )
+
         SeffcrossL[s,n] = np.linalg.norm(SeffcrossL_vec)
 
         SdotL[s,n], theta_SdotL[s,n] = nrbu.totspin_dot_L(
@@ -308,8 +313,10 @@ print "   * total mass: %f +/- %f"%(median_masses[matchsort][-1],
         std_masses[matchsort][-1])
 print "   * chirp mass: %f +/- %f"%(median_chirp_masses[matchsort][-1],
         std_chirp_masses[matchsort][-1])
-print "   * |a1|: %f, |a2|=%f"%(simulations_goodmatch[matchsort][-1]['a1'],
-        simulations_goodmatch[matchsort][-1]['a2'])
+print "   * |a1|: %f, |a2|=%f"%(np.around(simulations_goodmatch[matchsort][-1]['a1'],
+    decimals=nrbu.__metadata_ndecimals__),
+    np.around(simulations_goodmatch[matchsort][-1]['a2'],
+        decimals=nrbu.__metadata_ndecimals__))
 print "   * a1.L: %f, a2.L=%f"%(a1dotL[matchsort][-1], a2dotL[matchsort][-1])
 print "   * a1 x L: %f, a2 x L=%f"%(a1crossL[matchsort][-1],
         a2crossL[matchsort][-1])
@@ -321,20 +328,6 @@ print "   * |S_eff x L|=%f +/- %f"%(median_SeffcrossL[matchsort][-1],
 print "   * S.L=%f +/- %f"%(median_SdotL[matchsort][-1],
         std_SdotL[matchsort][-1])
 
-print '--'
-
-mass1, mass2 = pnutils.mtotal_eta_to_mass1_mass2(
-        np.median(masses[:,matchsort[-1]]),
-        simulations_goodmatch[matchsort[-1]]['eta'])
-print mass1,mass2
-
-print simulations_goodmatch[matchsort][-1]['spin1x'], \
-        simulations_goodmatch[matchsort][-1]['spin1y'], \
-        simulations_goodmatch[matchsort][-1]['spin1z']
-print simulations_goodmatch[matchsort][-1]['spin2x'], \
-        simulations_goodmatch[matchsort][-1]['spin2y'], \
-        simulations_goodmatch[matchsort][-1]['spin2z']
-print '--'
 
 if opts.no_plot: sys.exit(0)
 
@@ -343,134 +336,352 @@ if opts.no_plot: sys.exit(0)
 
 print >> sys.stdout, "Plotting..."
 
-# --- Mass vs a1.L Scatter plot
-f, ax = scatter_plot(param1=median_masses, param2=a1dotL,
-        matches=median_matches, param1err=std_masses, param2err=None, 
+
+#
+# TOTAL MASS VS ORIENTATION
+#
+
+#   # --- Mass vs a1.L Scatter plot
+#   f, ax = scatter_plot(param1=median_masses, param2=a1dotL,
+#           matches=median_matches, param1err=std_masses, param2err=None, 
+#           label1='Total Mass [M$_{\odot}$]',
+#           label2=r'$\hat{a}_1 . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_totalmass-a1dotL.png"%user_tag)
+#
+#   # --- Mass vs a2.L Scatter plot
+#   f, ax = scatter_plot(param1=median_masses, param2=a2dotL,
+#           matches=median_matches, param1err=std_masses, param2err=None, 
+#           label1='Total Mass [M$_{\odot}$]',
+#           label2=r'$\hat{a}_2 . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_totalmass-a2dotL.png"%user_tag)
+#
+#
+#   # --- Mass vs |a1xL| Scatter plot
+#   f, ax = scatter_plot(param1=median_masses, param2=a1crossL,
+#           matches=median_matches, param1err=std_masses, param2err=None, 
+#           label1='Total Mass [M$_{\odot}$]',
+#           label2=r'$|\hat{a}_1 \times \hat{L}|$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_totalmass-a1crossL.png"%user_tag)
+#
+#   # --- Mass vs |a2xL| Scatter plot
+#   f, ax = scatter_plot(param1=median_masses, param2=a2crossL,
+#           matches=median_matches, param1err=std_masses, param2err=None, 
+#           label1='Total Mass [M$_{\odot}$]',
+#           label2=r'$|\hat{a}_2 \times \hat{L}|$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_totalmass-a2crossL.png"%user_tag)
+
+# --- Mass vs SeffdotL
+f, ax = scatter_plot(param1=median_masses, param2=median_SeffdotL,
+        matches=median_matches, param1err=std_masses, param2err=std_SeffdotL, 
         label1='Total Mass [M$_{\odot}$]',
-        label2=r'$\hat{a}_1 . \hat{L}$')
+        label2=r'$\hat{S}_{\mathrm{eff}} . \hat{L}$')
 ax.set_title(user_tag)
 f.tight_layout()
-f.savefig("%s_totalmass-a1dotL.png"%user_tag)
+f.savefig("%s_totalmass-SeffdotL.png"%user_tag)
 
-# --- Mass vs a2.L Scatter plot
-f, ax = scatter_plot(param1=median_masses, param2=a2dotL,
-        matches=median_matches, param1err=std_masses, param2err=None, 
-        label1='Total Mass [M$_{\odot}$]',
+#   # --- Mass vs SeffcrossL
+#   f, ax = scatter_plot(param1=median_masses, param2=median_SeffcrossL,
+#           matches=median_matches, param1err=std_masses, param2err=std_SeffcrossL, 
+#           label1='Total Mass [M$_{\odot}$]',
+#           label2=r'$|\hat{S}_{\mathrm{eff}} \times \hat{L}|$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_totalmass-SeffcrossL.png"%user_tag)
+#
+#   # --- Mass vs theta12 Scatter plot
+#   f, ax = scatter_plot(param1=median_masses, param2=theta_a12,
+#           matches=median_matches, param1err=std_masses, param2err=None, 
+#           label1='Total Mass [M$_{\odot}$]',
+#           label2=r'$\theta_{1,2}$ [deg]')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_totalmass-theta_a12.png"%user_tag)
+#
+#   # --- Mass vs SdotL
+#   f, ax = scatter_plot(param1=median_masses, param2=median_SdotL,
+#           matches=median_matches, param1err=std_masses, param2err=std_SdotL, 
+#           label1='Total Mass [M$_{\odot}$]',
+#           label2=r'$\hat{S} . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_totalmass-SdotL.png"%user_tag)
+#
+#   # --- Mass vs theta_SdotL
+#   f, ax = scatter_plot(param1=median_masses, param2=median_theta_SdotL,
+#           matches=median_matches, param1err=std_masses, param2err=std_theta_SdotL, 
+#           label1='Total Mass [M$_{\odot}$]',
+#           label2=r'$\theta_{S,L}$ [deg]')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_totalmass-theta_SdotL.png"%user_tag)
+
+
+#
+# CHIRP MASS VS ORIENTATION
+#
+
+#   # --- Chirp Mass vs a1.L Scatter plot
+#   f, ax = scatter_plot(param1=median_chirp_masses, param2=a1dotL,
+#           matches=median_matches, param1err=std_chirp_masses, param2err=None, 
+#           label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
+#           label2=r'$\hat{a}_1 . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_chirpmass-a1dotL.png"%user_tag)
+#
+#   # --- Chirp Mass vs a2.L Scatter plot
+#   f, ax = scatter_plot(param1=median_chirp_masses, param2=a2dotL,
+#           matches=median_matches, param1err=std_chirp_masses, param2err=None, 
+#           label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
+#           label2=r'$\hat{a}_2 . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_chirpmass-a2dotL.png"%user_tag)
+#
+#
+#   # --- Chirp Mass vs |a1xL| Scatter plot
+#   f, ax = scatter_plot(param1=median_chirp_masses, param2=a1crossL,
+#           matches=median_matches, param1err=std_chirp_masses, param2err=None, 
+#           label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
+#           label2=r'$|\hat{a}_1 \times \hat{L}|$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_chirpmass-a1crossL.png"%user_tag)
+#
+#   # --- Chirp Mass vs |a2xL| Scatter plot
+#   f, ax = scatter_plot(param1=median_chirp_masses, param2=a2crossL,
+#           matches=median_matches, param1err=std_chirp_masses, param2err=None, 
+#           label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
+#           label2=r'$|\hat{a}_2 \times \hat{L}|$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_chirpmass-a2crossL.png"%user_tag)
+#
+#   # --- Chirp Mass vs SeffdotL
+#   f, ax = scatter_plot(param1=median_chirp_masses, param2=median_SeffdotL,
+#           matches=median_matches, param1err=std_chirp_masses, param2err=std_SeffdotL, 
+#           label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
+#           label2=r'$\hat{S}_{\mathrm{eff}} . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_chirpmass-SeffdotL.png"%user_tag)
+#
+#   # --- Chirp Mass vs SeffcrossL
+#   f, ax = scatter_plot(param1=median_chirp_masses, param2=median_SeffcrossL,
+#           matches=median_matches, param1err=std_chirp_masses, param2err=std_SeffcrossL, 
+#           label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
+#           label2=r'$|\hat{S}_{\mathrm{eff}} \times \hat{L}|$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_chirpmass-SeffcrossL.png"%user_tag)
+#
+#   # --- Chirp Mass vs theta12 Scatter plot
+#   f, ax = scatter_plot(param1=median_chirp_masses, param2=theta_a12,
+#           matches=median_matches, param1err=std_chirp_masses, param2err=None, 
+#           label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
+#           label2=r'$\theta_{1,2}$ [deg]')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_chirpmass-theta_a12.png"%user_tag)
+#
+#   # --- Chirp Mass vs SdotL
+#   f, ax = scatter_plot(param1=median_masses, param2=median_SdotL,
+#           matches=median_matches, param1err=std_chirp_masses, param2err=std_SdotL, 
+#           label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
+#           label2=r'$\hat{S} . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_chirpmass-SdotL.png"%user_tag)
+#
+#   # --- Chirp Mass vs theta_SdotL
+#   f, ax = scatter_plot(param1=median_chirp_masses, param2=median_theta_SdotL,
+#           matches=median_matches, param1err=std_chirp_masses,
+#           param2err=std_theta_SdotL, 
+#           label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
+#           label2=r'$\theta_{S,L}$ [deg]')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_chirpmass-theta_SdotL.png"%user_tag)
+
+#
+# MASS RATIO VS ORIENTATION
+#
+
+#   # --- Mass ratio vs a1.L Scatter plot
+#   f, ax = scatter_plot(param1=mass_ratios, param2=a1dotL,
+#           matches=median_matches, param1err=None, param2err=None, 
+#           label1='Mass ratio (q=m$_1$/m$_2$)',
+#           label2=r'$\hat{a}_1 . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-a1dotL.png"%user_tag)
+#
+#   # --- Mass ratio vs a2.L Scatter plot
+#   f, ax = scatter_plot(param1=mass_ratios, param2=a2dotL,
+#           matches=median_matches, param1err=None, param2err=None, 
+#           label1='Mass ratio (q=m$_1$/m$_2$)',
+#           label2=r'$\hat{a}_2 . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-a2dotL.png"%user_tag)
+#
+#   # --- Mass ratio vs |a1xL| Scatter plot
+#   f, ax = scatter_plot(param1=mass_ratios, param2=a1crossL,
+#           matches=median_matches, param1err=None, param2err=None, 
+#           label1='Mass ratio (q=m$_1$/m$_2$)',
+#           label2=r'$|\hat{a}_1 \times \hat{L}|$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-a1crossL.png"%user_tag)
+#
+#   # --- Mass ratio vs |a2xL| Scatter plot
+#   f, ax = scatter_plot(param1=mass_ratios, param2=a2crossL,
+#           matches=median_matches, param1err=None, param2err=None, 
+#           label1='Mass ratio (q=m$_1$/m$_2$)',
+#           label2=r'$|\hat{a}_2 \times \hat{L}|$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-a2crossL.png"%user_tag)
+#
+#   # --- Mass Ratio vs SeffdotL
+#   f, ax = scatter_plot(param1=mass_ratios, param2=median_SeffdotL,
+#           matches=median_matches, param1err=None, param2err=std_SeffdotL, 
+#           label1='Mass ratio (q=m$_1$/m$_2$)',
+#           label2=r'$\hat{S}_{\mathrm{eff}} . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-SeffdotL.png"%user_tag)
+#
+#   # --- Mass Ratio vs SeffcrossL
+#   f, ax = scatter_plot(param1=mass_ratios, param2=median_SeffcrossL,
+#           matches=median_matches, param1err=None, param2err=std_SeffcrossL, 
+#           label1='Mass ratio (q=m$_1$/m$_2$)',
+#           label2=r'$|\hat{S}_{\mathrm{eff}} \times \hat{L}|$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-SeffcrossL.png"%user_tag)
+#
+#   # --- Mass Ratio vs theta12 Scatter plot
+#   f, ax = scatter_plot(param1=mass_ratios, param2=theta_a12,
+#           matches=median_matches, param1err=None, param2err=None, 
+#           label1='Mass ratio (q=m$_1$/m$_2$)',
+#           label2=r'$\theta_{1,2}$ [deg]')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-theta_a12.png"%user_tag)
+#
+#   # --- Mass Ratio vs SdotL
+#   f, ax = scatter_plot(param1=mass_ratios, param2=median_SdotL,
+#           matches=median_matches, param1err=None, param2err=std_SdotL, 
+#           label1='Mass ratio (q=m$_1$/m$_2$)',
+#           label2=r'$\hat{S} . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-SdotL.png"%user_tag)
+#
+#   # --- Mass Ratio vs theta_SdotL
+#   f, ax = scatter_plot(param1=mass_ratios, param2=median_theta_SdotL,
+#           matches=median_matches, param1err=None,
+#           param2err=std_theta_SdotL, 
+#           label1='Mass ratio (q=m$_1$/m$_2$)',
+#           label2=r'$\theta_{S,L}$ [deg]')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-theta_SdotL.png"%user_tag)
+
+#
+# ORIENTATION vs ORIENTATION
+#
+
+# --- a1.L vs a2.L Scatter plot
+f, ax = scatter_plot(param1=a1dotL, param2=a2dotL,
+        matches=median_matches, param1err=None, param2err=None, 
+        label1=r'$\hat{a}_1 . \hat{L}$',
         label2=r'$\hat{a}_2 . \hat{L}$')
 ax.set_title(user_tag)
 f.tight_layout()
-f.savefig("%s_totalmass-a2dotL.png"%user_tag)
+f.savefig("%s_a1dotL-a2dotL.png"%user_tag)
 
-# --- Mass vs |a1xL| Scatter plot
-f, ax = scatter_plot(param1=median_masses, param2=a1crossL,
-        matches=median_matches, param1err=std_masses, param2err=None, 
-        label1='Total Mass [M$_{\odot}$]',
-        label2=r'$|\hat{a}_1 \times \hat{L}|$')
-ax.set_title(user_tag)
-f.tight_layout()
-f.savefig("%s_totalmass-a1crossL.png"%user_tag)
+#   # --- a1crossL vs a2crossL Scatter plot
+#   f, ax = scatter_plot(param1=a1crossL, param2=a2crossL,
+#           matches=median_matches, param1err=None, param2err=None, 
+#           label1=r'$\hat{a}_1 \times \hat{L}$',
+#           label2=r'$\hat{a}_2 \times \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_a1crossL-a2crossL.png"%user_tag)
+#
+#   # --- theta_a12 vs theta_SdotL
+#   f, ax = scatter_plot(param1=theta_a12, param2=median_theta_SdotL,
+#           matches=median_matches, param1err=None,
+#           param2err=std_theta_SdotL, 
+#           label1=r'$\theta_{1,2}$ [deg]',
+#           label2=r'$\theta_{S,L}$ [deg]')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_theta_a12-theta_SdotL.png"%user_tag)
 
-# --- Mass vs |a2xL| Scatter plot
-f, ax = scatter_plot(param1=median_masses, param2=a2crossL,
-        matches=median_matches, param1err=std_masses, param2err=None, 
-        label1='Total Mass [M$_{\odot}$]',
-        label2=r'$|\hat{a}_2 \times \hat{L}|$')
-ax.set_title(user_tag)
-f.tight_layout()
-f.savefig("%s_totalmass-a2crossL.png"%user_tag)
+#
+# MASS vs MASS
+#
 
+#   # --- Mass-ratio vs MassScatter plot
+#   f, ax = scatter_plot(param1=mass_ratios, param2=median_masses,
+#           matches=median_matches, param1err=None, param2err=std_masses, 
+#           label1='Mass ratio (q=m$_1$/m$_2$)',
+#           label2='Total Mass [M$_{\odot}$]')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-totalmass.png"%user_tag)
+#
+#   # --- Mass-ratio vs Chirp MassScatter plot
+#   f, ax = scatter_plot(param1=mass_ratios, param2=median_chirp_masses,
+#           matches=median_matches, param1err=None, param2err=std_chirp_masses,
+#           label1='Mass ratio (q=m$_1$/m$_2$)',
+#           label2='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-chirpmass.png"%user_tag)
+#
+#   # --- Chirp Mass vs Total Scatter plot
+#   f, ax = scatter_plot(param1=median_chirp_masses, param2=median_masses,
+#           matches=median_matches, param1err=std_chirp_masses, param2err=std_masses,
+#           label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
+#           label2='Total Mass [M$_{\odot}$]')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_totalmass-chirpmass.png"%user_tag)
 
-# --- Mass vs theta12 Scatter plot
-f, ax = scatter_plot(param1=median_masses, param2=theta_a12,
-        matches=median_matches, param1err=std_masses, param2err=None, 
-        label1='Total Mass [M$_{\odot}$]',
-        label2=r'$\theta_{1,2}$ [deg]')
-ax.set_title(user_tag)
-f.tight_layout()
-f.savefig("%s_totalmass-theta_a12.png"%user_tag)
-
-
-pl.show()
-
-sys.exit()
-
-# --- theta1 vs theta2 Scatter plot
-f, ax = scatter_plot(param1=theta1L, param2=theta2L,
-        matches=median_matches, param1err=None, param2err=None, 
-        label1=r'$\theta_1$, $\hat{s}_1.\hat{L}$ [deg]',
-        label2=r'$\theta_2$, $\hat{s}_2.\hat{L}$ [deg]')
-ax.set_title(user_tag)
-f.tight_layout()
-f.savefig("%s_theta1-theta2.png"%user_tag)
-
-
-# --- Mass-ratio vs MassScatter plot
-f, ax = scatter_plot(param1=mass_ratios, param2=median_masses,
-        matches=median_matches, param1err=None, param2err=std_masses, 
-        label1='Mass ratio (q=m$_1$/m$_2$)',
-        label2='Total Mass [M$_{\odot}$]')
-ax.set_title(user_tag)
-f.tight_layout()
-f.savefig("%s_massratio-totalmass.png"%user_tag)
-
-# --- Mass-ratio vs Chirp MassScatter plot
-f, ax = scatter_plot(param1=mass_ratios, param2=median_chirp_masses,
-        matches=median_matches, param1err=None, param2err=std_chirp_masses,
-        label1='Mass ratio (q=m$_1$/m$_2$)',
-        label2='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]')
-ax.set_title(user_tag)
-f.tight_layout()
-f.savefig("%s_massratio-chirpmass.png"%user_tag)
-
-
-# --- Mass-ratio vs Chi Scatter plot
-f, ax = scatter_plot(param1=mass_ratios, param2=median_chis,
-        matches=median_matches, param1err=None, param2err=std_chis,
-        label1='Mass ratio (q=m$_1$/m$_2$)',
-        label2='Effective Spin ($\chi$)')
-ax.set_title(user_tag)
-f.tight_layout()
-f.savefig("%s_massratio-chi.png"%user_tag)
-
-
-# --- Mass vs Chi Scatter plot
-f, ax = scatter_plot(param1=median_masses, param2=median_chis,
-        matches=median_matches, param1err=std_masses, param2err=std_chis,
-        label1='Total Mass [M$_{\odot}$]',
-        label2='Effective Spin ($\chi$)')
-ax.set_title(user_tag)
-f.tight_layout()
-f.savefig("%s_totalmass-chi.png"%user_tag)
-
-# --- Chirp Mass vs Chi Scatter plot
-f, ax = scatter_plot(param1=median_chirp_masses, param2=median_chis,
-        matches=median_matches, param1err=std_chirp_masses, param2err=std_chis,
+# --- Chirp Mass vs Mass ratio Scatter plot
+f, ax = scatter_plot(param1=median_chirp_masses, param2=mass_ratios,
+        matches=median_matches, param1err=std_chirp_masses, param2err=None,
         label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
-        label2='Effective Spin ($\chi$)')
-ax.set_title(user_tag)
-f.tight_layout()
-f.savefig("%s_chirpmass-chi.png"%user_tag)
-
-
-# --- Chirp Mass vs Total Scatter plot
-f, ax = scatter_plot(param1=median_chirp_masses, param2=median_masses,
-        matches=median_matches, param1err=std_chirp_masses, param2err=std_masses,
-        label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
-        label2='Total Mass [M$_{\odot}$]')
+        label2='Mass ratio (q=m$_1$/m$_2$)')
 ax.set_title(user_tag)
 f.tight_layout()
 f.savefig("%s_totalmass-chirpmass.png"%user_tag)
+
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOX PLOTS
 
 if config.algorithm=='BW':
-    f, ax = matchboxes(matches, simulations_goodmatch)
+    f, ax = matchboxes(matches, simulations_goodmatch, median_masses)
     ax.set_title('Top 25 ranked waveforms (%s)'%user_tag)
     f.tight_layout()
     f.savefig("%s_matchranking.png"%user_tag)
 elif config.algorithm=='CWB':
-    f, ax = matchpoints(matches, simulations_goodmatch)
+    f, ax = matchpoints(matches, simulations_goodmatch, median_masses)
     ax.set_title('Top 25 ranked waveforms (%s)'%user_tag)
     f.tight_layout()
     f.savefig("%s_matchranking.png"%user_tag)
