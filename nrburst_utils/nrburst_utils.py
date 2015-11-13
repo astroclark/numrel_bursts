@@ -141,9 +141,9 @@ def spin_angle(spin1x, spin1y, spin1z, spin2x, spin2y, spin2z):
     else:
         return 0.0
 
-    if np.dot(a1,a2)-1 < lal.EPSILON0_SI:
+    if abs(np.dot(a1,a2)-1) < lal.EPSILON0_SI:
         theta12 = 0.0
-    elif np.dot(a1,a2)+1 < lal.EPSILON0_SI :
+    elif abs(np.dot(a1,a2)+1) < lal.EPSILON0_SI :
         theta12 = lal.PI
     else:
         theta12 = np.arccos(np.dot(a1, a2))

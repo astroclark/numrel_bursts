@@ -271,13 +271,13 @@ for s, sim in enumerate(simulations_goodmatch):
 
         SeffdotL[s,n], SeffcrossL_vec = nrbu.effspin_with_L(
                 mass1, sim['spin1x'], sim['spin1y'], sim['spin1z'], 
-                mass2, sim['spin2x'], sim['spin1y'], sim['spin1z']
+                mass2, sim['spin2x'], sim['spin2y'], sim['spin2z']
                 )
         SeffcrossL[s,n] = np.linalg.norm(SeffcrossL_vec)
 
         SdotL[s,n], theta_SdotL[s,n] = nrbu.totspin_dot_L(
                 mass1, sim['spin1x'], sim['spin1y'], sim['spin1z'], 
-                mass2, sim['spin2x'], sim['spin1y'], sim['spin1z']
+                mass2, sim['spin2x'], sim['spin2y'], sim['spin2z']
                 )
 
 median_chirp_masses = np.median(chirp_masses, axis=1)
@@ -321,6 +321,20 @@ print "   * |S_eff x L|=%f +/- %f"%(median_SeffcrossL[matchsort][-1],
 print "   * S.L=%f +/- %f"%(median_SdotL[matchsort][-1],
         std_SdotL[matchsort][-1])
 
+print '--'
+
+mass1, mass2 = pnutils.mtotal_eta_to_mass1_mass2(
+        np.median(masses[:,matchsort[-1]]),
+        simulations_goodmatch[matchsort[-1]]['eta'])
+print mass1,mass2
+
+print simulations_goodmatch[matchsort][-1]['spin1x'], \
+        simulations_goodmatch[matchsort][-1]['spin1y'], \
+        simulations_goodmatch[matchsort][-1]['spin1z']
+print simulations_goodmatch[matchsort][-1]['spin2x'], \
+        simulations_goodmatch[matchsort][-1]['spin2y'], \
+        simulations_goodmatch[matchsort][-1]['spin2z']
+print '--'
 
 if opts.no_plot: sys.exit(0)
 
