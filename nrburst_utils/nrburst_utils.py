@@ -94,66 +94,85 @@ def extract_wave(inwave, datalen=4.0, sample_rate = 4096):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Derived physical quantities
 
-def a_dot_L(spinx, spiny, spinz):
+def a_with_L(spinx, spiny, spinz):
     """
     Return the alignment of spin vector with angular momentum:
     
-    dot([spinx, spiny, spinz], [0, 0, 1])
+    dot([spinx, spiny, spinz], [0, 0, 1]), cross(...)
     """
-    return np.dot(np.array([spinx, spiny, spinz]), np.array([0, 0, 1]))
+    return (np.dot(np.array([spinx, spiny, spinz]), np.array([0, 0, 1])),
+            np.cross(np.array([spinx, spiny, spinz]), np.array([0, 0, 1])))
 
 def effspin_with_L(mass1, spin1x, spin1y, spin1z, 
-        mass2, spin2x, spin2y, spin2z, mass_ratio):
+        mass2, spin2x, spin2y, spin2z):
     """
     Return dot and cross products of effective spin vector with angular momentum
     """
-    S1 = np.array([spin1x, spin1y, spin1z])* mass1**2
-    S2 = np.array([spin2x, spin2y, spin2z])* mass2**2
 
-    S_eff = (1.0 + 1.0/mass_ratio)*S1 + (1.0+q)*S2
-    S_eff /= np.linalg.norm(S_eff)
+    mass_ratio = mass1 / mass2
+    
+    a1 = np.array([spin1x, spin1y, spin1z])
+    a2 = np.array([spin2x, spin2y, spin2z])
 
-    L_hat = np.array([0, 0, 1])
+    if np.linalg.norm(a1) > lal.EPSILON0_SI and np.linalg.norm(a2) > lal.EPSILON0_SI:
+        S1 = a1*mass1**2
+        S2 = a2*mass2**2
+        S_eff = (1.0 + 1.0/mass_ratio)*S1 + (1.0+mass_ratio)*S2
+        S_eff /= np.linalg.norm(S_eff)
+        L_hat = np.array([0, 0, 1])
 
-    return np.dot(S_eff, L_hat), np.cross(S_eff, L_hat)
+        return np.dot(S_eff, L_hat), np.cross(S_eff, L_hat)
+    else:
+        return np.nan, np.nan
 
 def spin_angle(spin1x, spin1y, spin1z, spin2x, spin2y, spin2z):
     """
     Return angle (in degrees) subtended by spin vectors
     """
-    a1 = np.array([spin1x, spin1y, spin1z])
-    
-    a2 = np.array([spin2x, spin2y, spin2z])
+    a1 = np.array([spin1x, spin1y, spin1z]) 
+    if a1.any() > lal.EPSILON0_SI:
+        a1 /= np.linalg.norm(a1)
+    else:
+        return 0.0
 
-    # Shouldn't need the norms here...
-    theta12knp.cos(np.dot(a1, a2) / (np.linalg.norm(a2)*np.linalg.norm(a2)))
+    a2 = np.array([spin2x, spin2y, spin2z]) 
+    if a2.any() > lal.EPSILON0_SI:
+        a2 /= np.linalg.norm(a2)
+    else:
+        return 0.0
 
+    if np.linalg.norm(a1) > lal.EPSILON0_SI and np.linalg.norm(a2) > lal.EPSILON0_SI:
+
+        if np.dot(a1,a2)-1 < lal.EPSILON0_SI:
+            theta12 = 0.0
+        elif np.dot(a1,a2)+1 < lal.EPSILON0_SI :
+            theta12 = lal.PI
+        else:
+            theta12 = np.arccos(np.dot(a1, a2))
+    else:
+        theta12 = np.nan
     return theta12 / lal.PI_180
 
-def orb_planar_spin(spinx, spiny, spinz):
-    """
-    Components of spin in orbital plane
-    """
-    a = np.array([spinx, spiny, spinz])
-    L_hat = np.array([0, 0, 1])
-
-    return np.cross(a, L_hat)
 
 def totspin_dot_L(mass1, spin1x, spin1y, spin1z, 
         mass2, spin2x, spin2y, spin2z):
     """
     Return dot product and angle between total spin and angular momentum
     """
-    S1 = np.array([spin1x, spin1y, spin1z])* mass1**2
-    S2 = np.array([spin2x, spin2y, spin2z])* mass2**2
 
-    S = S1 + S2
+    a1 = np.array([spin1x, spin1y, spin1z])
+    a2 = np.array([spin2x, spin2y, spin2z])
 
-    L_hat = np.array([0, 0, 1])
+    if np.linalg.norm(a1) > lal.EPSILON0_SI and np.linalg.norm(a2) > lal.EPSILON0_SI:
+        S1 = a1*mass1**2
+        S2 = a2*mass2**2
+        S = S1 + S2
+        L_hat = np.array([0, 0, 1])
+        SdotL = np.dot(S, L_hat) / np.linalg.norm(S)
 
-    SdotL = np.dot(S, L_hat) / np.linalg.norm(S)
-
-    return SdotL, np.cos(SdotL) / lal.PI_180
+        return SdotL, np.arccos(SdotL) / lal.PI_180
+    else:
+        return np.nan, np.nan
 
 
 
