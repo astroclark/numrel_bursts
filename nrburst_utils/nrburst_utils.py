@@ -115,18 +115,16 @@ def a_with_L(spinx, spiny, spinz):
 
     return np.dot(a, Lhat), np.cross(a, Lhat)
 
-def effspin_with_L(mass1, spin1x, spin1y, spin1z, 
-        mass2, spin2x, spin2y, spin2z):
+
+def effspin_with_L(mass_ratio, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z):
     """
     Return dot and cross products of effective spin vector with angular momentum
     """
 
     L_hat = np.array([0, 0, 1])
 
-    mass1_normed = mass1/(mass1+mass2)
-    mass2_normed = mass2/(mass1+mass2)
-
-    mass_ratio = mass1 / mass2
+    mass1 = mass_ratio / (1.0+mass_ratio)
+    mass2 = 1-mass1
     
     a1, a1norm = a_vec(spin1x, spin1y, spin1z)
     if a1norm==0:
@@ -136,24 +134,10 @@ def effspin_with_L(mass1, spin1x, spin1y, spin1z,
     if a2norm==0:
         return 0.0, 0.0
 
-    S1 = a1*mass1_normed**2
-    S2 = a2*mass2_normed**2
+    S1 = a1*mass1**2
+    S2 = a2*mass2**2
     S_eff = (1.0 + 1.0/mass_ratio)*S1 + (1.0+mass_ratio)*S2
     S_effnorm = np.linalg.norm(S_eff)
-
-    if S_effnorm > 1:
-        print "WHAT?"
-        print S_eff, L_hat
-        print a1
-        print a2
-        print mass1
-        print mass2
-        sys.exit(-1)
-
-    if np.dot(S_eff, L_hat)>1:
-        print "WHAT?"
-        print S_eff, L_hat
-        sys.exit(-1)
 
     if S_effnorm > 0:
 
@@ -185,11 +169,13 @@ def spin_angle(spin1x, spin1y, spin1z, spin2x, spin2y, spin2z):
     return theta12 / lal.PI_180
 
 
-def totspin_dot_L(mass1, spin1x, spin1y, spin1z, 
-        mass2, spin2x, spin2y, spin2z):
+def totspin_dot_L(mass_ratio, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z):
     """
     Return dot product and angle between total spin and angular momentum
     """
+
+    mass1 = mass_ratio / (1.0+mass_ratio)
+    mass2 = 1-mass1
 
     a1 = np.array([spin1x, spin1y, spin1z])
     a2 = np.array([spin2x, spin2y, spin2z])
