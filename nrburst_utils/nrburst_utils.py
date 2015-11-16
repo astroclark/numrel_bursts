@@ -328,8 +328,14 @@ def parser():
     parser.add_option("-t", "--user-tag", default="TEST", type=str)
     parser.add_option("-o", "--output-dir", type=str, default=None)
     parser.add_option("-a", "--algorithm", type=str, default=None)
+    parser.add_option("-s", "--simulation-number", type=str, default="all")
 
     (opts,args) = parser.parse_args()
+
+    if opts.simulation_number != "all":
+        print >> sys.stdout, "Analysis restricted to simulation %s"%(
+                opts.simulation_number)
+        opts.simulation_number = int(opts.simulation_number)
 
     if len(args)==0:
         print >> sys.stderr, "ERROR: require config file"

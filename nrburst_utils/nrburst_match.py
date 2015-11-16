@@ -47,6 +47,7 @@ __version__ = "git id %s" % git_version_id
 opts, args, cp = nrbu.parser()
 config = nrbu.configuration(cp)
 
+
 #
 # --- catalog Definition
 #
@@ -100,6 +101,10 @@ then = timeit.time.time()
 
 simulations = nrbu.simulation_details(param_bounds=bounds,
         catdir=config.catalog)
+
+if opts.simulation_number != "all":
+    simulations.simulations = [simulations.simulations[opts.simulation_number]]
+    simulations.nsimulations = len(simulations.simulations)
 
 # Useful time/freq samples
 time_axis = np.arange(config.datalen, config.delta_t)
@@ -300,7 +305,7 @@ for w in xrange(simulations.nsimulations):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Dump data
 
-filename=config.detector_name+'_'+opts.user_tag+'_'+config.algorithm+'_'+gpsnow+'.pickle'
+filename=config.detector_name+'_'+opts.user_tag+'_'+config.algorithm+'_nrsim-'+str(opts.simulation_number)+'.pickle'
 
 # Dump results and configuration to pickle
 pickle.dump([matches, masses, inclinations, config, simulations,
