@@ -387,7 +387,10 @@ class configuration:
         self.algorithm=configparser.get('analysis', 'algorithm')
         self.detector_name=configparser.get('analysis', 'detector-name')
 
-        self.nsampls=configparser.getint('parameters', 'nsampls')
+        try:
+            self.nsampls=configparser.getint('parameters', 'nsampls')
+        except:
+            self.nsampls='all'
         self.min_chirp_mass=configparser.getfloat('parameters', 'min-chirp-mass')
         self.max_chirp_mass=configparser.getfloat('parameters', 'max-chirp-mass')
 
@@ -430,7 +433,6 @@ class simulation_details:
         self.simulations = self.list_simulations(catdir=self.catdir)
         self.nsimulations = len(self.simulations)
 
-        print "----"
         print "Found %d waveforms matching criteria:"%(self.nsimulations)
         print "Bounds: ", param_bounds
         print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -521,7 +523,6 @@ class simulation_details:
                 # parameters - we need to remove all but 1
  
                 #for index in indices[1:]:
-                print '----'
                 print "retaining ", resorted_simulations[0]['wavefile']
                 print resorted_simulations[0]
                 for sim in resorted_simulations[1:]:
