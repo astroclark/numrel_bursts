@@ -115,8 +115,9 @@ def fancy_scatter_plot(param1x, param2x, paramy, label1x='x', label2x='y',
         c=matches[match_sort], s=50, alpha=1, cmap=cm)
     for p in match_sort:
         scat_indi = ax[0].scatter(param1x[p], paramy[p], c=matches[p], s=50,
-                alpha=1, label='Median', zorder=matches[p])
+                alpha=1, zorder=matches[p])
     scat_all.set_clim(min(matches),max(matches))
+
 
     ax[0].minorticks_on()
     ax[0].grid()
@@ -360,11 +361,16 @@ f, ax = fancy_scatter_plot(
         labely='q',
         label1x=r'$\hat{\mathbf{S}}_1 . \hat{\mathbf{L}}$',
         label2x=r'$\hat{\mathbf{S}}_2 . \hat{\mathbf{L}}$')
+
+ax[0].annotate('# sims: %d'%len(simulations_goodmatch), (-0.9, 1.1))
+
 f.tight_layout()
 pl.subplots_adjust(bottom=0.3)
 f.savefig("%s_massratio-a1dotLa2dotL.png"%user_tag)
 
 
+pl.show()
+sys.exit()
 
 #   # --- Mass vs SeffdotL
 #   f, ax = scatter_plot(param1=median_masses, param2=SeffdotL,
