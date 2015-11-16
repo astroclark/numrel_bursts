@@ -151,12 +151,9 @@ def make_labels(simulations):
     labels=[]
     for s,sim in enumerate(simulations):
 
-        SdotL, theta_SdotL = nrbu.totspin_dot_L(sim['q'],
-                sim['spin1x'], sim['spin1y'], sim['spin1z'], 
-                sim['spin2x'], sim['spin2y'], sim['spin2z']
-                )
-        theta_a12 = nrbu.spin_angle(sim['spin1x'], sim['spin1y'], sim['spin1z'],
-                sim['spin2x'], sim['spin2y'], sim['spin2z'])
+        SdotL = sim['SdotL']
+        theta_SdotL = sim['theta_SdotL']
+        theta_a12 = sim['theta_a12']
 
         labelstr = \
                 r"$q=%.2f$, $a_1=%.2f$, $a_2=%.2f$, $\theta_{1,2}=%.2f$, $\theta_{\mathrm{\hat{S},\hat{L}}}=%.2f$"%(
@@ -299,25 +296,19 @@ for s, sim in enumerate(simulations_goodmatch):
     mass_ratios[s] = sim['q']
     sym_mass_ratios[s] = sim['eta']
 
-    a1dotL[s], a1crossL_vec = nrbu.a_with_L(sim['spin1x'], sim['spin1y'], sim['spin1z'])
-    a2dotL[s], a2crossL_vec = nrbu.a_with_L(sim['spin2x'], sim['spin2y'], sim['spin2z'])
+    a1dotL[s] = sim['a1dotL']
+    a2dotL[s] = sim['a2dotL']
 
-    a1crossL[s] = np.linalg.norm(a1crossL_vec)
-    a2crossL[s] = np.linalg.norm(a2crossL_vec)
+    a1crossL[s] = sim['a1crossL']
+    a2crossL[s] = sim['a2crossL']
 
-    theta_a12[s] = nrbu.spin_angle(sim['spin1x'], sim['spin1y'], sim['spin1z'],
-            sim['spin2x'], sim['spin2y'], sim['spin2z'])
+    theta_a12[s] = sim['theta_a12']
 
-    SeffdotL[s], SeffcrossL_vec = nrbu.effspin_with_L(
-            mass_ratios[s], sim['spin1x'], sim['spin1y'], sim['spin1z'],
-            sim['spin2x'], sim['spin2y'], sim['spin2z']
-            )
-    SeffcrossL[s] = np.linalg.norm(SeffcrossL_vec)
+    SeffdotL[s] = sim['SeffdotL']
+    SeffcrossL[s] = sim['SeffcrossL']
 
-    SdotL[s], theta_SdotL[s] = nrbu.totspin_dot_L(
-            mass_ratios[s], sim['spin1x'], sim['spin1y'], sim['spin1z'],
-            sim['spin2x'], sim['spin2y'], sim['spin2z']
-            )
+    SdotL[s] = sim['theta_SdotL']
+    theta_SdotL[s] = sim['theta_SdotL']
 
     for n in xrange(config.nsampls):
 
@@ -359,22 +350,21 @@ if opts.no_plot: sys.exit(0)
 
 print >> sys.stdout, "Plotting..."
 
+mass_ratios = 1./mass_ratios
+
 # XXX: EXPERIMENTAL
 f, ax = fancy_scatter_plot(
         param1x=a1dotL, param2x=a2dotL,
-        paramy=1./mass_ratios,
+        paramy=mass_ratios,
         matches=median_matches, 
         labely='q',
         label1x=r'$\hat{\mathbf{S}}_1 . \hat{\mathbf{L}}$',
         label2x=r'$\hat{\mathbf{S}}_2 . \hat{\mathbf{L}}$')
 f.tight_layout()
 pl.subplots_adjust(bottom=0.3)
+f.savefig("%s_massratio-a1dotLa2dotL.png"%user_tag)
 
 
-pl.show()
-sys.exit()
-
-mass_ratios = 1./mass_ratios
 
 #   # --- Mass vs SeffdotL
 #   f, ax = scatter_plot(param1=median_masses, param2=SeffdotL,
