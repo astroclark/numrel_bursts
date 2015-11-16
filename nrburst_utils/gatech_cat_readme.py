@@ -35,6 +35,8 @@ import h5py
 
 from pycbc import pnutils
 
+import nrburst_utils as nrbu
+
 __author__ = "James Clark <james.clark@ligo.org>"
 gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
 __date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
@@ -64,11 +66,6 @@ def get_params(file):
     params['spin2y'] = float(f.attrs['spin2y'])
     params['spin2z'] = float(f.attrs['spin2z'])
 
-    params['a1'] = np.sqrt(params['spin1x']**2 + params['spin1y']**2 +
-            params['spin1z']**2)
-    params['a2'] = np.sqrt(params['spin2x']**2 + params['spin2y']**2 +
-            params['spin2z']**2)
-
     params['Mmin30Hz'] = float(f.attrs['f_lower_at_1MSUN']) / 30.0
 
     mass1, mass2 = pnutils.mtotal_eta_to_mass1_mass2(params['Mmin30Hz'],
@@ -78,6 +75,32 @@ def get_params(file):
             pnutils.mass1_mass2_to_mchirp_eta(mass1,mass2)
 
     params['q'] = mass1 / mass2
+
+    # --- Derived spin configuration
+    params['a1'] = np.linalg.norm([params['spin1x'], params['spin1y'], params['spin1z']])
+    params['a2'] = np.linalg.norm([params['spin2x'], params['spin2y'], params['spin2z']])
+
+    params['a1dotL'], vec =  nrbu.a_with_L(params['spin1x'], params['spin1y'],
+            params['spin1z'])
+    params['a1crossL'] = np.linalg.norm(vec)
+
+    params['a2dotL'], vec =  nrbu.a_with_L(params['spin2x'], params['spin2y'],
+            params['spin2z'])
+    params['a2crossL'] = np.linalg.norm(vec)
+
+    params['theta_a12'] = nrbu.spin_angle(params['spin1x'], params['spin1y'], params['spin1z'], 
+            params['spin2x'], params['spin2y'], params['spin2z'])
+
+    params['SeffdotL'], vec = nrbu.effspin_with_L(params['q'], 
+                        params['spin1x'], params['spin1y'],
+                        params['spin1z'], params['spin2x'], params['spin2y'],
+                        params['spin2z'])
+    params['SeffcrossL'] = np.linalg.norm(vec)
+
+    params['SdotL'], params['theta_SdotL'] = nrbu.totspin_dot_L(params['q'], 
+                        params['spin1x'], params['spin1y'], params['spin1z'],
+                        params['spin2x'], params['spin2y'], params['spin2z']) 
+
 
     params['wavefile'] = os.path.abspath(file)
 
