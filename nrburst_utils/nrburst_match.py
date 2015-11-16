@@ -33,12 +33,12 @@ import lal
 import nrburst_utils as nrbu
 
 __author__ = "James Clark <james.clark@ligo.org>"
-gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
-__date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
+#gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
+__date__ = 'today'#subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
 
 # Get the current git version
-git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
-        cwd=os.path.dirname(sys.argv[0])).strip()
+git_version_id = 'this one'#subprocess.check_output(['git', 'rev-parse', 'HEAD'],
+        #cwd=os.path.dirname(sys.argv[0])).strip()
 __version__ = "git id %s" % git_version_id
 
 
@@ -46,6 +46,7 @@ __version__ = "git id %s" % git_version_id
 # Parse input
 opts, args, cp = nrbu.parser()
 config = nrbu.configuration(cp)
+
 
 #
 # --- catalog Definition
@@ -64,21 +65,26 @@ asd_data = np.loadtxt(config.spectral_estimate)
 # compute matches (useful for speed / development work)
 if config.algorithm=='BW':
 
-    # Load sampled waveforms
-    print 'reducing sample size'
-    idx = np.random.random_integers(low=0, high=len(reconstruction_data)-1,
-            size=config.nsampls)
-
     # Load extrinsic parameters
     rec_ext_params = np.loadtxt(config.extrinsic_params)
     rec_right_ascension = rec_ext_params[:,2] / lal.PI_180
     rec_declination     = np.arcsin(rec_ext_params[:,3]) / lal.PI_180
     rec_polarization    = rec_ext_params[:,4] / lal.PI_180
-    
-    reconstruction_data = reconstruction_data[idx]
-    rec_right_ascension = rec_right_ascension[idx]
-    rec_declination     = rec_declination[idx]
-    rec_polarization    = rec_polarization[idx]
+
+    if config.nsampls != 'all':
+
+        # Load sampled waveforms
+        print 'reducing sample size'
+        idx = np.random.random_integers(low=0, high=len(reconstruction_data)-1,
+                size=config.nsampls)
+
+        reconstruction_data = reconstruction_data[idx]
+        rec_right_ascension = rec_right_ascension[idx]
+        rec_declination     = rec_declination[idx]
+        rec_polarization    = rec_polarization[idx]
+    else:
+        print 'using ALL BW samples (%d)'%len(reconstruction_data)
+        setattr(config, 'nsampls', len(reconstruction_data))
 
 
 elif config.algorithm=='CWB':
@@ -100,6 +106,11 @@ then = timeit.time.time()
 
 simulations = nrbu.simulation_details(param_bounds=bounds,
         catdir=config.catalog)
+
+if getattr(opts, 'simulation_number') != "all":
+    setattr(simulations, 'simulations',
+            [simulations.simulations[opts.simulation_number]])
+    setattr(simulations, 'nsimulations', len(simulations.simulations))
 
 # Useful time/freq samples
 time_axis = np.arange(config.datalen, config.delta_t)
@@ -300,7 +311,7 @@ for w in xrange(simulations.nsimulations):
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Dump data
 
-filename=config.detector_name+'_'+opts.user_tag+'_'+config.algorithm+'_'+gpsnow+'.pickle'
+filename=config.detector_name+'_'+opts.user_tag+'_'+config.algorithm+'_nrsim-'+str(opts.simulation_number)+'.pickle'
 
 # Dump results and configuration to pickle
 pickle.dump([matches, masses, inclinations, config, simulations,

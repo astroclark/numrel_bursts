@@ -49,19 +49,13 @@ __author__ = "James Clark <james.clark@ligo.org>"
 #git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
 #__version__ = "git id %s" % git_version_id
 
-gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
-__date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
+#gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
+#__date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
 
 # *****************************************************************************
-global __param_names__
-#__param_names__ = ['D', 'mres', 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', 'th12',
-#                'thSL', 'thJL', 'Mmin30Hz', 'Mmin10Hz', 'Mchirpmin30Hz', 'a1x',
-#                'a1y', 'a1z', 'a2x', 'a2y', 'a2z', 'Lx',  'Ly', 'Lz', 'mf', 'af']
-#__param_names__ = ['D', 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', 'th12',
-#                'thSL', 'thJL', 'Mmin30Hz', 'Mmin10Hz', 'Mchirpmin30Hz', 'a1x',
-#                'a1y', 'a1z', 'a2x', 'a2y', 'a2z', 'Lx',  'Ly', 'Lz', 'mf', 'af']
-__param_names__ = ['Mchirpmin30Hz', 'Mmin30Hz', 'a1', 'a2', 'eta', 'q',
-'spin1x', 'spin1y', 'spin1z', 'spin2x', 'spin2y', 'spin2z']
+#global __param_names__
+#__param_names__ = ['Mchirpmin30Hz', 'Mmin30Hz', 'a1', 'a2', 'eta', 'q',
+#'spin1x', 'spin1y', 'spin1z', 'spin2x', 'spin2y', 'spin2z']
 
 global __metadata_ndecimals__ # number of decimal places to retain in metadata
 __metadata_ndecimals__ = 3
@@ -334,8 +328,14 @@ def parser():
     parser.add_option("-t", "--user-tag", default="TEST", type=str)
     parser.add_option("-o", "--output-dir", type=str, default=None)
     parser.add_option("-a", "--algorithm", type=str, default=None)
+    parser.add_option("-s", "--simulation-number", type=str, default="all")
 
     (opts,args) = parser.parse_args()
+
+    if opts.simulation_number != "all":
+        print >> sys.stdout, "Analysis restricted to simulation %s"%(
+                opts.simulation_number)
+        opts.simulation_number = int(opts.simulation_number)
 
     if len(args)==0:
         print >> sys.stderr, "ERROR: require config file"
@@ -387,7 +387,10 @@ class configuration:
         self.algorithm=configparser.get('analysis', 'algorithm')
         self.detector_name=configparser.get('analysis', 'detector-name')
 
-        self.nsampls=configparser.getint('parameters', 'nsampls')
+        try:
+            self.nsampls=configparser.getint('parameters', 'nsampls')
+        except:
+            self.nsampls='all'
         self.min_chirp_mass=configparser.getfloat('parameters', 'min-chirp-mass')
         self.max_chirp_mass=configparser.getfloat('parameters', 'max-chirp-mass')
 
@@ -430,7 +433,6 @@ class simulation_details:
         self.simulations = self.list_simulations(catdir=self.catdir)
         self.nsimulations = len(self.simulations)
 
-        print "----"
         print "Found %d waveforms matching criteria:"%(self.nsimulations)
         print "Bounds: ", param_bounds
         print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
@@ -447,8 +449,17 @@ class simulation_details:
 
         readme_file = os.path.join(catdir, 'README.txt')
 
+        # --- Extract parameter names from readme file
+        global __param_names__ 
+        f = open(readme_file, 'r')
+        __param_names__ = f.readline().split()[1:] # get rid of '#' 
+        # Now get rid of runID and wavefile
+        __param_names__.remove('runID')
+        __param_names__.remove('wavefile')
+
+
         # Get all simulations (from readme)
-        simulations = self._get_series(catdir, readme_file)
+        simulations = self._get_metadata(catdir, readme_file)
 
         # Down-select on parameters
         if self.param_bounds is not None:
@@ -471,16 +482,12 @@ class simulation_details:
         """
         print "Ensuring uniqueness of simulations"
 
-
         # Make a copy of the list of simulations
         unique_simulations = list(simulations)
 
-        #physical_params = 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', \
-        #        'th12', 'thSL', 'thJL', 'mres'
-        #physical_params = 'q', 'a1', 'a2', 'th1L', 'th2L', 'ph1', 'ph2', \
-        #        'th12', 'thSL', 'thJL'
-        physical_params = 'a1', 'q', 'spin2x', 'spin2y', 'spin2z', 'eta', \
-                'spin1y', 'spin1x', 'spin1z', 'a2'
+        physical_params = list(__param_names__)
+        physical_params.remove('Mmin30Hz')
+        physical_params.remove('Mchirpmin30Hz')
 
         param_sets = []
 
@@ -516,12 +523,13 @@ class simulation_details:
                 # parameters - we need to remove all but 1
  
                 #for index in indices[1:]:
-                print '----'
-                print "retaining ", resorted_simulations[0]['wavename']
+                print "retaining ", resorted_simulations[0]['wavefile']
+                print resorted_simulations[0]
                 for sim in resorted_simulations[1:]:
                     # Remove everything after the first simulation which has
                     # this parameter set
-                    print "removing ", sim['wavename']
+                    print "removing ", sim['wavefile']
+                    print sim
                     unique_simulations.remove(sim)
 
         return unique_simulations
@@ -536,15 +544,16 @@ class simulation_details:
                 sim[param]<=max(bounds) ]
 
     @staticmethod
-    def _get_series(datadir, readme_file):
+    def _get_metadata(datadir, readme_file):
         """
         Read the parameters from the readme file and return a list of simulation
         dictionaries
         """
         readme_data = np.loadtxt(readme_file, dtype=str)
+
+        # Get param names
         
         simulations = []
-        #nNotFound = 0
         for s in xrange(len(readme_data)):
 
             sim = dict()
