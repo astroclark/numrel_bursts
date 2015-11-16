@@ -33,12 +33,12 @@ import lal
 import nrburst_utils as nrbu
 
 __author__ = "James Clark <james.clark@ligo.org>"
-gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
-__date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
+#gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
+__date__ = 'today'#subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
 
 # Get the current git version
-git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
-        cwd=os.path.dirname(sys.argv[0])).strip()
+git_version_id = 'this one'#subprocess.check_output(['git', 'rev-parse', 'HEAD'],
+        #cwd=os.path.dirname(sys.argv[0])).strip()
 __version__ = "git id %s" % git_version_id
 
 

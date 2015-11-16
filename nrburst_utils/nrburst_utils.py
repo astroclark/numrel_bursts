@@ -49,8 +49,8 @@ __author__ = "James Clark <james.clark@ligo.org>"
 #git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
 #__version__ = "git id %s" % git_version_id
 
-gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
-__date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
+#gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
+#__date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
 
 # *****************************************************************************
 #global __param_names__
