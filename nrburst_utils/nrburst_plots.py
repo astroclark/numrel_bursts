@@ -81,7 +81,8 @@ def scatter_plot(param1, param2, matches, param1err=None, param2err=None,
                 alpha=1, label='Median', zorder=matches[p])
 
     #scat_all.set_clim(opts.match_clim_low,opts.match_clim_upp)
-    scat_all.set_clim(opts.match_clim_low,max(matches))
+    #scat_all.set_clim(opts.match_clim_low,max(matches))
+    scat_all.set_clim(min(matches),max(matches))
 
     colbar = f.colorbar(scat_all) 
     colbar.set_label('FF')
@@ -94,6 +95,51 @@ def scatter_plot(param1, param2, matches, param1err=None, param2err=None,
     ax.set_ylabel(label2)
 
     f.tight_layout()
+
+    return f, ax
+
+def fancy_scatter_plot(param1x, param2x, paramy, label1x='x', label2x='y',
+        labely='Y', matches=None):
+    """
+    Make a scatter plot of param1 against param2, coloured by match value
+    """
+
+    match_sort = np.argsort(matches)
+
+    f, ax = pl.subplots(ncols=2, sharey=True)
+
+    cm = pl.cm.get_cmap('gnuplot')
+
+    # Here's a bunch of messing around to get the best matches plotted on top
+    scat_all = ax[0].scatter(param1x[match_sort], paramy[match_sort],
+        c=matches[match_sort], s=50, alpha=1, cmap=cm)
+    for p in match_sort:
+        scat_indi = ax[0].scatter(param1x[p], paramy[p], c=matches[p], s=50,
+                alpha=1, label='Median', zorder=matches[p])
+    scat_all.set_clim(min(matches),max(matches))
+
+    ax[0].minorticks_on()
+    ax[0].grid()
+    ax[0].set_xlabel(label1x)
+    ax[0].set_ylabel(labely)
+
+    # --- 2nd axis
+    scat_all = ax[1].scatter(param2x[match_sort], paramy[match_sort],
+        c=matches[match_sort], s=50, alpha=1, cmap=cm)
+    for p in match_sort:
+        scat_indi = ax[1].scatter(param2x[p], paramy[p], c=matches[p], s=50,
+                alpha=1, label='Median', zorder=matches[p])
+    scat_all.set_clim(min(matches),max(matches))
+
+    ax[1].minorticks_on()
+    ax[1].grid()
+    ax[1].set_xlabel(label2x)
+
+
+    cbar_ax = f.add_axes([0.13, 0.125, 0.8, 0.05])
+    colbar = f.colorbar(scat_all, orientation='horizontal', cax=cbar_ax) 
+    colbar.set_label('Fit Factor')
+
 
     return f, ax
 
@@ -120,7 +166,7 @@ def make_labels(simulations):
     return labels
 
 
-def matchboxes(matches, simulations):
+def matchboxes(matches, simulations, Nwaves):
     """
     Build a (hideous) box plot to show individual waveform match results from
     BayesWave.  Since we're optimising over mass, this is fitting-factor.
@@ -140,7 +186,7 @@ def matchboxes(matches, simulations):
     ax.grid(linestyle='-', color='grey')
     ax.minorticks_on()
 
-    ax.set_ylim(len(mean_matches)-25.5, len(mean_matches)+0.5)
+    ax.set_ylim(len(mean_matches)-(Nwaves+0.5), len(mean_matches)+0.5)
 
     ax.set_xlim(0.8,1.0)
 
@@ -185,7 +231,6 @@ def matchpoints(matches, simulations):
 
     return f, ax
 
-
 __author__ = "James Clark <james.clark@ligo.org>"
 gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
 __date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
@@ -194,7 +239,6 @@ __date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
 git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
         cwd=os.path.dirname(sys.argv[0])).strip()
 __version__ = "git id %s" % git_version_id
-
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -315,52 +359,100 @@ if opts.no_plot: sys.exit(0)
 
 print >> sys.stdout, "Plotting..."
 
-
-# --- Mass vs SeffdotL
-f, ax = scatter_plot(param1=median_masses, param2=SeffdotL,
-        matches=median_matches, param1err=std_masses, param2err=None, 
-        label1='Total Mass [M$_{\odot}$]',
-        label2=r'$\hat{S}_{\mathrm{eff}} . \hat{L}$')
-ax.set_title(user_tag)
+# XXX: EXPERIMENTAL
+f, ax = fancy_scatter_plot(
+        param1x=a1dotL, param2x=a2dotL,
+        paramy=1./mass_ratios,
+        matches=median_matches, 
+        labely='q',
+        label1x=r'$\hat{\mathbf{S}}_1 . \hat{\mathbf{L}}$',
+        label2x=r'$\hat{\mathbf{S}}_2 . \hat{\mathbf{L}}$')
 f.tight_layout()
-f.savefig("%s_totalmass-SeffdotL.png"%user_tag)
+pl.subplots_adjust(bottom=0.3)
 
 
-# --- a1.L vs a2.L Scatter plot
-f, ax = scatter_plot(param1=a1dotL, param2=a2dotL,
+pl.show()
+sys.exit()
+
+mass_ratios = 1./mass_ratios
+
+#   # --- Mass vs SeffdotL
+#   f, ax = scatter_plot(param1=median_masses, param2=SeffdotL,
+#           matches=median_matches, param1err=std_masses, param2err=None, 
+#           label1='Total Mass [M$_{\odot}$]',
+#           label2=r'$\hat{S}_{\mathrm{eff}} . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_totalmass-SeffdotL.png"%user_tag)
+#
+# --- mass ratio vs a1.L Scatter plot
+f, ax = scatter_plot(param1=mass_ratios, param2=a1dotL,
         matches=median_matches, param1err=None, param2err=None, 
-        label1=r'$\hat{a}_1 . \hat{L}$',
-        label2=r'$\hat{a}_2 . \hat{L}$')
-ax.set_title(user_tag)
+        label1='$q$',
+        label2=r'$\hat{\mathrm{S}}_1 . \hat{L}$')
+#ax.set_title(user_tag)
 f.tight_layout()
-f.savefig("%s_a1dotL-a2dotL.png"%user_tag)
+f.savefig("%s_massratio-a1dotL.png"%user_tag)
 
-
-# --- Chirp Mass vs Mass ratio Scatter plot
-f, ax = scatter_plot(param1=median_chirp_masses, param2=mass_ratios,
-        matches=median_matches, param1err=std_chirp_masses, param2err=None,
-        label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
-        label2='Mass ratio (q=m$_1$/m$_2$)')
-ax.set_title(user_tag)
+# --- mass ratio vs a2.L Scatter plot
+f, ax = scatter_plot(param1=mass_ratios, param2=a2dotL,
+        matches=median_matches, param1err=None, param2err=None, 
+        label1='$q$',
+        label2=r'$\hat{\mathrm{S}}_2 . \hat{L}$')
+#ax.set_title(user_tag)
 f.tight_layout()
-f.savefig("%s_chirpmass-massratio.png"%user_tag)
+f.savefig("%s_massratio-a2dotL.png"%user_tag)
 
+
+#   # --- a1.L vs a2.L Scatter plot
+#   f, ax = scatter_plot(param1=a1dotL, param2=a2dotL,
+#           matches=median_matches, param1err=None, param2err=None, 
+#           label1=r'$\hat{a}_1 . \hat{L}$',
+#           label2=r'$\hat{a}_2 . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_a1dotL-a2dotL.png"%user_tag)
+
+#   # --- a1.L vs |a1xL| Scatter plot
+#   f, ax = scatter_plot(param1=a1crossL, param2=a1dotL,
+#           matches=median_matches, param1err=None, param2err=None, 
+#           label1=r'|$\mathbf{S}_1 \times \hat{L}|$',
+#           label2=r'$\mathbf{S}_1 . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#
+#   f, ax = scatter_plot(param1=a2crossL, param2=a2dotL,
+#           matches=median_matches, param1err=None, param2err=None, 
+#           label1=r'$|\mathbf{S}_2 \times \hat{L}|$',
+#           label2=r'$\mathbf{S}_2 . \hat{L}$')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+
+#f.savefig("%s_a1dotL-a2dotL.png"%user_tag)
+
+
+#   # --- Chirp Mass vs Mass ratio Scatter plot
+#   f, ax = scatter_plot(param1=median_chirp_masses, param2=mass_ratios,
+#           matches=median_matches, param1err=std_chirp_masses, param2err=None,
+#           label1='$\mathcal{M}_{\mathrm{chirp}}$ [M$_{\odot}$]',
+#           label2='Mass ratio (q=m$_1$/m$_2$)')
+#   ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_chirpmass-massratio.png"%user_tag)
 
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOX PLOTS
 
+Nwaves=10
 if config.algorithm=='BW':
-    f, ax = matchboxes(matches, simulations_goodmatch)
-    ax.set_title('Top 25 ranked waveforms (%s)'%user_tag)
-    f.tight_layout()
-    f.savefig("%s_matchranking.png"%user_tag)
+    f, ax = matchboxes(matches, simulations_goodmatch, Nwaves)
 elif config.algorithm=='CWB':
-    f, ax = matchpoints(matches, simulations_goodmatch)
-    ax.set_title('Top 25 ranked waveforms (%s)'%user_tag)
-    f.tight_layout()
-    f.savefig("%s_matchranking.png"%user_tag)
+    f, ax = matchpoints(matches, simulations_goodmatch, Nwaves)
+ax.set_title('Top %d ranked waveforms (%s)'%(Nwaves,user_tag))
+f.tight_layout()
+f.savefig("%s_matchranking.png"%user_tag)
 
 #pl.show()
 
