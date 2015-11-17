@@ -139,7 +139,7 @@ def fancy_scatter_plot(param1x, param2x, paramy, label1x='x', label2x='y',
 
     cbar_ax = f.add_axes([0.13, 0.125, 0.8, 0.05])
     colbar = f.colorbar(scat_all, orientation='horizontal', cax=cbar_ax) 
-    colbar.set_label('Fit Factor')
+    colbar.set_label('Median Fit Factor')
 
 
     return f, ax
@@ -175,7 +175,7 @@ def matchboxes(matches, simulations, Nwaves):
     match_sort = np.argsort(np.median(matches, axis=1))
 
     # --- Match vs Waveform boxes
-    f, ax = pl.subplots(figsize=(12,8))
+    f, ax = pl.subplots(figsize=(12,16))
     match_box = ax.boxplot(matches[match_sort].T, whis='range', showcaps=True,
             showmeans=True, showfliers=False,
             vert=False)
@@ -369,8 +369,8 @@ pl.subplots_adjust(bottom=0.3)
 f.savefig("%s_massratio-a1dotLa2dotL.png"%user_tag)
 
 
-pl.show()
-sys.exit()
+#pl.show()
+#sys.exit()
 
 #   # --- Mass vs SeffdotL
 #   f, ax = scatter_plot(param1=median_masses, param2=SeffdotL,
@@ -441,7 +441,7 @@ f.savefig("%s_massratio-a2dotL.png"%user_tag)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOX PLOTS
 
-Nwaves=10
+Nwaves=50
 if config.algorithm=='BW':
     f, ax = matchboxes(matches, simulations_goodmatch, Nwaves)
 elif config.algorithm=='CWB':

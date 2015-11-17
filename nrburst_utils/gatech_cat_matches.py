@@ -34,10 +34,11 @@ import timeit
 import lal
 from pylal import spawaveform
 import pycbc.types
-from pycbc.waveform import get_td_waveform
+from pycbc.waveform import get_td_waveform, get_fd_waveform
 from pycbc.waveform import utils as wfutils
 import pycbc.filter
 from pycbc import pnutils
+from pycbc import fft
 
 
 import nrburst_utils as nrbu
@@ -122,7 +123,8 @@ def parse_NR_asc(file):
 #
 bounds = dict()
 
-data_path='/home/jclark/Projects/numrel_bursts/gatech_data'
+home=os.environ.get('HOME')
+data_path=os.path.join(home, 'Projects/numrel_bursts/gatech_data')
 # *************************************
 #   1)  D12_q2.00_a0.15_-0.60_m200 
 bounds['q'] = [1.999, 2.001]
@@ -167,19 +169,11 @@ errors_file = os.path.join(data_path,
 
 # *************************************
 
-times_codeunits, hplus_NR_codeunits, hcross_NR_codeunits, \
-        dAmpbyAmp_codeunits, dphi_codeunits = parse_NR_asc(errors_file)
-
-inc = 0 # inclination
+inc = 0 
 approx='SEOBNRv2'
+#approx='IMRPhenomPv2'
+#approx='IMRPhenomP'
 f_low_approx=20
-
-#
-#    4) RO3_D10_q1.50_a0.60_oth.090_M120
-#    - GATECH0173.h5
-#
-#    5) q8_LL_D9_a0.6_th1_45_th2_225_m400
-#    - GATECH0447.h5
 
 
 #
@@ -197,13 +191,12 @@ datalen = 8
 #
 # --- Noise Spectrum
 #
-asd_file = \
-        "/home/jclark/GW150914_data/noise_curves/early_aligo.dat"
+asd_file = os.path.join(home, 'GW150914_data/noise_curves/early_aligo.dat')
 
 #
 # --- Catalog
 #
-catalog='/home/jclark/GW150914_data/nr_catalog/gatech_hdf5'
+catalog=os.path.join(home, 'GW150914_data/nr_catalog/gatech_hdf5')
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Generate The Catalogue
@@ -243,6 +236,10 @@ asd_data = np.loadtxt(asd_file)
 #   each dictionary is 1 GAtech waveform with all physical attributes, as well
 #   as matches at 5 mass scales with some selection of approximants
 
+# Extract the data
+times_codeunits, hplus_NR_codeunits, hcross_NR_codeunits, \
+        dAmpbyAmp_codeunits, dphi_codeunits = parse_NR_asc(errors_file)
+
 # Set up the Masses we're going to study
 masses = np.linspace(simulations.simulations[0]['Mmin30Hz'], maxMass,
         nMassPoints) + 5
@@ -261,14 +258,6 @@ for m,mass in enumerate(masses):
     mass1, mass2 = pnutils.mtotal_eta_to_mass1_mass2(mass,
             simulations.simulations[0]['eta'])
 
-    # Estimate ffinal 
-    chi = pnutils.phenomb_chi(mass1, mass2,
-            simulations.simulations[0]['spin1z'],simulations.simulations[0]['spin2z'])
-    ffinal = pnutils.get_final_freq(approx, mass1, mass2, 
-            simulations.simulations[0]['spin1z'],simulations.simulations[0]['spin2z'])
-    #upp_bound = ffinal
-    #upp_bound = 1.5*ffinal
-    upp_bound = 0.5/delta_t
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # NUMERICAL RELATIVITY
@@ -291,42 +280,77 @@ for m,mass in enumerate(masses):
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # APPROXIMANT 
-    hplus_approx, hcross_approx = get_td_waveform(approximant=approx,
-            distance=distance,
-            mass1=mass1,
-            mass2=mass2,
-            spin1x=0.0,
-            spin2x=0.0,
-            spin1y=0.0,
-            spin2y=0.0,
-            spin1z=simulations.simulations[0]['spin1z'],
-            spin2z=simulations.simulations[0]['spin2z'],
-            inclination=inc,
-            f_lower=f_low_approx * min(masses)/mass,
-            delta_t=delta_t)
-            #spin1x=simulations.simulations[0]['spin1x'],
-            #spin2x=simulations.simulations[0]['spin2x'],
-            #spin1y=simulations.simulations[0]['spin1y'],
-            #spin2y=simulations.simulations[0]['spin2y'],
-            #spin1z=simulations.simulations[0]['spin1z'],
-            #spin2z=simulations.simulations[0]['spin2z'],
+
+    if approx == 'SEOBNRv2':
+
+        hplus_approx, hcross_approx = get_td_waveform(approximant=approx,
+                distance=distance,
+                mass1=mass1,
+                mass2=mass2,
+                spin1x=0.0,
+                spin2x=0.0,
+                spin1y=0.0,
+                spin2y=0.0,
+                spin1z=simulations.simulations[0]['spin1z'],
+                spin2z=simulations.simulations[0]['spin2z'],
+                inclination=inc,
+                f_lower=f_low_approx * min(masses)/mass,
+                delta_t=delta_t)
+                #spin1x=simulations.simulations[0]['spin1x'],
+                #spin2x=simulations.simulations[0]['spin2x'],
+                #spin1y=simulations.simulations[0]['spin1y'],
+                #spin2y=simulations.simulations[0]['spin2y'],
+                #spin1z=simulations.simulations[0]['spin1z'],
+                #spin2z=simulations.simulations[0]['spin2z'],
+
+        # Make the timeseries consistent lengths
+        tlen = max(len(hplus_approx), len(hplus_NR))
+
+        hplus_approx.resize(tlen)
+        hplus_NR.resize(tlen)
+        hcross_approx.resize(tlen)
+        hcross_NR.resize(tlen)
+
+        # Estimate ffinal 
+        #ffinal = pnutils.get_final_freq(approx, mass1, mass2, 
+        #        simulations.simulations[0]['spin1z'],simulations.simulations[0]['spin2z'])
+
+    elif approx == 'IMRPhenomPv2' or approx == 'IMRPhenomP':
+
+        Hplus_approx, Hcross_approx = get_fd_waveform(approximant=approx,
+                distance=distance,
+                mass1=mass1,
+                mass2=mass2,
+                spin1x=simulations.simulations[0]['spin1x'],
+                spin2x=simulations.simulations[0]['spin2x'],
+                spin1y=simulations.simulations[0]['spin1y'],
+                spin2y=simulations.simulations[0]['spin2y'],
+                spin1z=simulations.simulations[0]['spin1z'],
+                spin2z=simulations.simulations[0]['spin2z'],
+                inclination=inc,
+                f_lower=f_low_approx * min(masses)/mass,
+                delta_f=hplus_NR.to_frequencyseries().delta_f)
+
+        tlen = int(1.0 / hplus_NR.delta_t / Hplus_approx.delta_f)
+
+        Hplus_approx.resize(tlen/2 + 1)
+        hplus_approx = pycbc.types.TimeSeries(pycbc.types.zeros(tlen), delta_t=hplus_NR.delta_t)
+        fft.ifft(Hplus_approx, hplus_approx)
+
+        Hcross_approx.resize(tlen/2 + 1)
+        hcross_approx = pycbc.types.TimeSeries(pycbc.types.zeros(tlen), delta_t=hcross_NR.delta_t)
+        fft.ifft(Hcross_approx, hcross_approx)
 
     hplus_approx = wfutils.taper_timeseries(hplus_approx, 'TAPER_START')
     hcross_approx = wfutils.taper_timeseries(hcross_approx, 'TAPER_START')
 
 
-
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # MATCH CALCULATION 
  
-    # Make the timeseries consistent lengths
-    tlen = max(len(hplus_approx), len(hplus_NR))
-    #tlen = int(datalen / delta_t)
-
-    hplus_approx.resize(tlen)
-    hplus_NR.resize(tlen)
-    hcross_approx.resize(tlen)
-    hcross_NR.resize(tlen)
+    #upp_bound = ffinal
+    #upp_bound = 1.5*ffinal
+    upp_bound = 0.5/delta_t
     
     # ***********************
     # Errors
