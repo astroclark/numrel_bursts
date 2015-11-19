@@ -344,6 +344,20 @@ print "   * |S_eff x L|=%f"%(SeffcrossL[matchsort][-1])
 print "   * S.L=%f"%(SdotL[matchsort][-1])
 
 
+# Data dump to ascii
+header="# match mass chirpmass q eta a1dotL a2dotL a1crossL a2crossL SeffdotL SeffcrossL theta_a12 SdotL theta_SdotL\n"
+data_dump_file = open("%s_datadump.txt", 'w')
+data_dump_file.writeline(header)
+for n in xrange(simulations_goodmatch.nsimulations):
+    data_dump_file.writelines(
+            "%f %f %f %f %f %f %f %f %f %f %f %f %f %f\n"%(
+                median_matches[s], median_masses[s], median_chirp_mases[s],
+                q[s], eta[s], a1dotL[s], a2dotL[s], a1crossL[s], a2crossL[s],
+                SeffdotL[s], SeffcrossL[s], theta_a12[s], SdotL[s],
+                theta_SdotL[s]))
+data_dump_file.close()
+
+
 if opts.no_plot: sys.exit(0)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
