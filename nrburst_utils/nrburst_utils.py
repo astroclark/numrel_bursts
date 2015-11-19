@@ -109,6 +109,33 @@ def a_with_L(spinx, spiny, spinz):
 
     return np.dot(a, Lhat), np.cross(a, Lhat)
 
+def S_eff(mass_ratio, spin1_component, spin2_component, component='x'):
+
+    mass1 = mass_ratio / (1.0+mass_ratio)
+    mass2 = 1-mass1
+    
+    if component=='x':
+        a1, a1norm = a_vec(spin1_component, 0, 0)
+        a2, a2norm = a_vec(spin2_component, 0, 0)
+    elif component=='y':
+        a1, a1norm = a_vec(0, spin1_component, 0)
+        a2, a2norm = a_vec(0, spin2_component, 0)
+    elif component=='z':
+        a1, a1norm = a_vec(0, 0, spin1_component)
+        a2, a2norm = a_vec(0, 0, spin2_component)
+
+    if a1norm==0:
+        return 0.0
+
+    if a2norm==0:
+        return 0.0
+
+    S1 = a1*mass1**2
+    S2 = a2*mass2**2
+    S_eff = (1.0 + 1.0/mass_ratio)*S1 + (1.0+mass_ratio)*S2
+
+    return np.linalg.norm(S_eff)
+
 
 def effspin_with_L(mass_ratio, spin1x, spin1y, spin1z, spin2x, spin2y, spin2z):
     """
