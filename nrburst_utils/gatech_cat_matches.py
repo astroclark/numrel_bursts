@@ -54,7 +54,7 @@ def window_wave(input_data):
     nonzero=np.argwhere(abs(input_data)>1e-3*max(abs(input_data)))
     idx = range(nonzero[0],nonzero[-1])
     win = planckwin(len(idx), 0.3)
-    win[0.5*len(win):] = 1.0
+    win[int(0.5*len(win)):] = 1.0
     input_data[idx] *= win
 
     return input_data
@@ -127,45 +127,53 @@ home=os.environ.get('HOME')
 data_path=os.path.join(home, 'Projects/numrel_bursts/gatech_data')
 # *************************************
 #   1)  D12_q2.00_a0.15_-0.60_m200 
-bounds['q'] = [1.999, 2.001]
-bounds['spin1z'] = [0.14, 0.16]
-bounds['spin2z'] = [-0.59, -0.61]
+if int(sys.argv[1]) == 1:
+    bounds['q'] = [1.999, 2.001]
+    bounds['spin1z'] = [0.14, 0.16]
+    bounds['spin2z'] = [-0.59, -0.61]
 
-errors_file = os.path.join(data_path,
-        'Strain_Lframe_l2_m2_r75_D12_q2.00_a0.15_-0.60_m200.asc')
+    errors_file = os.path.join(data_path,
+            'Strain_Simframe_l2_m2_r75_D12_q2.00_a0.15_-0.60_m200.asc')
 
- 
-#    2) Sq4_d9_a0.6_oth.270_rr_M180 
-#    - Highest resolution of this run missing in h5 catalog
-#    - for lower res try: GATECH0410.h5
-#   bounds['q'] = [3.9999, 4.0001]
-#   bounds['spin1z'] = [0, 0.00001]
-#   bounds['spin2z'] = [0, 0.00001]
-#   bounds['spin1x'] = [-0.61, -0.59]
-#   bounds['spin2x'] = [-0.61, -0.59]
-#   errors_file = os.path.join(data_path,
-#           'Strain_Lframe_l2_m2_r75_Sq4_d9_a0.6_oth.270_rr_M180.asc')
+    savename='D12_q2.00_a0.15_-0.60_m200'
+    tlen=0
+
+# 2) Sq4_d9_a0.6_oth.270_rr_M180 
+if int(sys.argv[1])==2:
+    bounds['q'] = [3.9999, 4.0001]
+    bounds['spin1z'] = [0, 0.00001]
+    bounds['spin2z'] = [0, 0.00001]
+    bounds['spin1x'] = [-0.61, -0.59]
+    bounds['spin2x'] = [-0.61, -0.59]
+    errors_file = os.path.join(data_path,
+            'Strain_Simframe_l2_m2_r75_Sq4_d9_a0.6_oth.270_rr_M180.asc')
+    tlen = 0
+    savename='Sq4_d9_a0.6_oth.270_rr_M180'
+
+# 3) D7.5_q15.00_a0.0_CHgEEB_m800
+if int(sys.argv[1]) == 3:
+    bounds['q'] = [14.99, 15.01]
+    bounds['q'] = [10, np.inf]
+    errors_file = None
+    savename='D7.5_q15.00_a0.0_CHgEEB_m800'
+    tlen = 0 
 
 
-#    3) D7.5_q15.00_a0.0_CHgEEB_m800
-#   bounds['q'] = [14.99, 15.01]
-#   bounds['q'] = [10, np.inf]
-#   errors_file = os.path.join(data_path,
-#           'Strain_Lframe_l2_m2_r75_Sq4_d9_a0.6_oth.270_rr_M180.asc')
-
-
-#   #    4) RO3_D10_q1.50_a0.60_oth.090_M120
-#   bounds['q'] = [1.4999, 1.50001]
-#   bounds['spin1z'] = [0, 0.0001]
-#   bounds['spin2z'] = [0.59, 0.61]
-#   errors_file = os.path.join(data_path,
-#   'Strain_Lframe_l2_m2_r75_RO3_D10_q1.50_a0.60_oth.090_M120.asc')
+#    4) RO3_D10_q1.50_a0.60_oth.090_M120
+if int(sys.argv[1]) ==4:
+    bounds['q'] = [1.4999, 1.50001]
+    bounds['spin1z'] = [0, 0.0001]
+    bounds['spin2z'] = [0.59, 0.61]
+    errors_file = None
+    savename='RO3_D10_q1.50_a0.60_oth.090_M120'
+    tlen=1
 
 #    5) q8_LL_D9_a0.6_th1_45_th2_225
-#bounds['q'] = [7.5, 8.5]
-#errors_file = os.path.join(data_path,
-#'Strain_Lframe_l2_m2_r75_q8_LL_D9_a0.6_th1_45_th2_225_m400.asc')
-#'Strain_Simframe_l2_m2_r75_q8_LL_D9_a0.6_th1_45_th2_225_m400.asc')
+if int(sys.argv[1])==5:
+    bounds['q'] = [7.5, 8.5]
+    errors_file = None
+    savename='q8_LL_D9_a0.6_th1_45_th2_225'
+    tlen=0
 
 # *************************************
 
@@ -237,8 +245,9 @@ asd_data = np.loadtxt(asd_file)
 #   as matches at 5 mass scales with some selection of approximants
 
 # Extract the data
-times_codeunits, hplus_NR_codeunits, hcross_NR_codeunits, \
-        dAmpbyAmp_codeunits, dphi_codeunits = parse_NR_asc(errors_file)
+if errors_file is not None:
+    times_codeunits, hplus_NR_codeunits, hcross_NR_codeunits, \
+            dAmpbyAmp_codeunits, dphi_codeunits = parse_NR_asc(errors_file)
 
 # Set up the Masses we're going to study
 masses = np.linspace(simulations.simulations[0]['Mmin30Hz'], maxMass,
@@ -254,29 +263,54 @@ for m,mass in enumerate(masses):
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Common params
+#    mass = masses[-1]
 
     mass1, mass2 = pnutils.mtotal_eta_to_mass1_mass2(mass,
             simulations.simulations[0]['eta'])
 
+    # Estimate ffinal 
+    ffinal = pnutils.get_final_freq('SEOBNRv2', mass1, mass2,
+            simulations.simulations[0]['spin1z'],
+            simulations.simulations[0]['spin2z'])
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # NUMERICAL RELATIVITY
 
-    # --- Generate the polarisations
-#   hplus_NR, hcross_NR = nrbu.get_wf_pols(
-#           simulations.simulations[0]['wavefile'], mass, inclination=inc,
-#           delta_t=delta_t, f_lower=29 * min(masses) / mass, distance=distance)
+    if errors_file is None:
 
-    hplus_NR  = scale_NR(times_codeunits, hplus_NR_codeunits, mass,
-            delta_t=delta_t)
-    hcross_NR = scale_NR(times_codeunits, hcross_NR_codeunits, mass,
-            delta_t=delta_t)
+        # --- Generate the polarisations from hdf5
+        hplus_NR, hcross_NR = nrbu.get_wf_pols(
+                simulations.simulations[0]['wavefile'], mass, inclination=inc,
+                delta_t=delta_t, f_lower=30.0001 * min(masses) / mass,
+                distance=distance)
 
-    hplus_NR.data = window_wave(hplus_NR.data)
-    hcross_NR.data = window_wave(hcross_NR.data)
+    else:
+        # --- read the polarisations and errors from ascii
 
+        hplus_NR  = scale_NR(times_codeunits, hplus_NR_codeunits, mass,
+                delta_t=delta_t)
+        hcross_NR = scale_NR(times_codeunits, hcross_NR_codeunits, mass,
+                delta_t=delta_t)
+
+        #hplus_NR.data = window_wave(hplus_NR.data)
+        #hcross_NR.data = window_wave(hcross_NR.data)
+
+        dAmpbyAmp = scale_NR(times_codeunits, dAmpbyAmp_codeunits, mass, delta_t=delta_t)
+        dphi      = scale_NR(times_codeunits, dphi_codeunits, mass, delta_t=delta_t)
+
+    NR_freqs = wfutils.frequency_from_polarizations(hplus_NR, hcross_NR)
+
+    # zero-out everything after ffinal
+#   crossing_point = \
+#           NR_freqs.sample_times[
+#                   np.isclose(NR_freqs,ffinal,1/hplus_NR.sample_times[-1])[0]
+#                   ]
+#   hplus_NR.data[int(hplus_NR.sample_times>crossing_point)] = 0.0
+#   hcross_NR.data[int(hcross_NR.sample_times>crossing_point)] = 0.0
+#
     hplus_NR = wfutils.taper_timeseries(hplus_NR, 'TAPER_STARTEND')
     hcross_NR = wfutils.taper_timeseries(hcross_NR, 'TAPER_STARTEND')
+#
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # APPROXIMANT 
@@ -303,17 +337,13 @@ for m,mass in enumerate(masses):
                 #spin1z=simulations.simulations[0]['spin1z'],
                 #spin2z=simulations.simulations[0]['spin2z'],
 
-        # Make the timeseries consistent lengths
-        tlen = max(len(hplus_approx), len(hplus_NR))
+        hplus_approx = wfutils.taper_timeseries(hplus_approx, 'TAPER_STARTEND')
+        hcross_approx = wfutils.taper_timeseries(hcross_approx, 'TAPER_STARTEND')
 
-        hplus_approx.resize(tlen)
-        hplus_NR.resize(tlen)
-        hcross_approx.resize(tlen)
-        hcross_NR.resize(tlen)
 
-        # Estimate ffinal 
-        #ffinal = pnutils.get_final_freq(approx, mass1, mass2, 
-        #        simulations.simulations[0]['spin1z'],simulations.simulations[0]['spin2z'])
+        approx_freqs = wfutils.frequency_from_polarizations(hplus_approx,
+                hcross_approx)
+
 
     elif approx == 'IMRPhenomPv2' or approx == 'IMRPhenomP':
 
@@ -347,74 +377,90 @@ for m,mass in enumerate(masses):
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # MATCH CALCULATION 
- 
-    #upp_bound = ffinal
-    #upp_bound = 1.5*ffinal
-    upp_bound = 0.5/delta_t
-    
-    # ***********************
-    # Errors
-    # Convert to amplitude/phase
- 
-    dAmpbyAmp = scale_NR(times_codeunits, dAmpbyAmp_codeunits, mass, delta_t=delta_t)
-    dAmpbyAmp.resize(tlen)
-    dphi = scale_NR(times_codeunits, dphi_codeunits, mass, delta_t=delta_t)
-    dphi.resize(tlen)
- 
-    amp_NR = wfutils.amplitude_from_polarizations(hplus_NR, hcross_NR)
-    amp_NR_deltaUpp = amp_NR + dAmpbyAmp*amp_NR
-    amp_NR_deltaLow = amp_NR - dAmpbyAmp*amp_NR 
 
-    phi_NR = wfutils.phase_from_polarizations(hplus_NR, hcross_NR)
-    phi_NR_deltaUpp = phi_NR + dphi
-    phi_NR_deltaLow = phi_NR - dphi
- 
-    hplus_NR_deltaLow = \
-            pycbc.types.TimeSeries(np.real(amp_NR_deltaLow*np.exp(1j*phi_NR_deltaLow)),
-                    delta_t=hplus_NR.delta_t)
-    hplus_NR_deltaUpp = \
-            pycbc.types.TimeSeries(np.real(amp_NR_deltaUpp*np.exp(1j*phi_NR_deltaUpp)),
-                    delta_t=hplus_NR.delta_t)
- 
+    # Make the timeseries consistent lengths
+    tlen += max(len(hplus_approx), len(hplus_NR))
+
+
+    hplus_approx.resize(tlen)
+    hplus_NR.resize(tlen)
+    hcross_approx.resize(tlen)
+    hcross_NR.resize(tlen)
+
+    #upp_bound = ffinal
+    upp_bound = 1.5*ffinal
+    #upp_bound = 0.5/delta_t
+
+    delta_f = 1./(tlen*delta_t)
+    sample_frequencies = np.arange(0, 0.5 / delta_t, delta_f)
 
     # Interpolate the ASD to the waveform frequencies (this is convenient so that we
     # end up with a PSD which overs all frequencies for use in the match calculation
     # later
-    asd = np.interp(hplus_approx.to_frequencyseries().sample_frequencies,
-            asd_data[:,0], asd_data[:,1])
-
+    asd = np.interp(sample_frequencies, asd_data[:,0], asd_data[:,1])
 
     # Now insert ASD into a pycbc frequency series so we can use
     # pycbc.filter.match() later
-    noise_psd = pycbc.types.FrequencySeries(asd**2, delta_f =
-            hplus_approx.to_frequencyseries().delta_f)
+    noise_psd = pycbc.types.FrequencySeries(asd**2, delta_f = delta_f)
 
 
     match, _ = pycbc.filter.match(hplus_approx, hplus_NR,
             low_frequency_cutoff=30.0, psd=noise_psd,
             high_frequency_cutoff=upp_bound)
 
-    match_deltaUpp, _ = pycbc.filter.match(hplus_NR, hplus_NR_deltaUpp,
-            low_frequency_cutoff=30.0, psd=noise_psd,
-            high_frequency_cutoff=upp_bound) 
+    
+    # Errors
+    if errors_file is not None:
 
-    match_deltaLow, _ = pycbc.filter.match(hplus_NR, hplus_NR_deltaLow,
-            low_frequency_cutoff=30.0, psd=noise_psd,
-            high_frequency_cutoff=upp_bound)
+        dAmpbyAmp.resize(tlen)
+        dphi.resize(tlen)
+ 
+        # Convert waveform to amplitude/phase, add/subtract errors 
+     
+        amp_NR = wfutils.amplitude_from_polarizations(hplus_NR, hcross_NR)
+        amp_NR_deltaUpp = amp_NR + dAmpbyAmp*amp_NR
+        amp_NR_deltaLow = amp_NR - dAmpbyAmp*amp_NR 
+
+        phi_NR = wfutils.phase_from_polarizations(hplus_NR, hcross_NR)
+        phi_NR_deltaUpp = phi_NR + dphi
+        phi_NR_deltaLow = phi_NR - dphi
+     
+        hplus_NR_deltaLow = \
+                pycbc.types.TimeSeries(np.real(amp_NR_deltaLow*np.exp(1j*phi_NR_deltaLow)),
+                        delta_t=hplus_NR.delta_t)
+        hplus_NR_deltaUpp = \
+                pycbc.types.TimeSeries(np.real(amp_NR_deltaUpp*np.exp(1j*phi_NR_deltaUpp)),
+                        delta_t=hplus_NR.delta_t)
+ 
+        match_deltaUpp, _ = pycbc.filter.match(hplus_NR, hplus_NR_deltaUpp,
+                low_frequency_cutoff=30.0, psd=noise_psd,
+                high_frequency_cutoff=upp_bound) 
+
+        match_deltaLow, _ = pycbc.filter.match(hplus_NR, hplus_NR_deltaLow,
+                low_frequency_cutoff=30.0, psd=noise_psd,
+                high_frequency_cutoff=upp_bound)
+
+        mismatch_deltaUpp = 100*(1-match_deltaUpp)
+        mismatch_deltaLow = 100*(1-match_deltaLow)
+
+        #mismatch_delta = np.mean([mismatch_deltaUpp, mismatch_deltaLow])
+        mismatch_delta = max([mismatch_deltaUpp, mismatch_deltaLow])
+
+    else:
+        mismatch_deltaUpp = 100*(1-np.copy(match))
+        mismatch_deltaLow = 100*(1-np.copy(match))
+        mismatch_delta = 0.0
 
     mismatch = 100*(1-match)
 
-    mismatch_deltaUpp = 100*(1-match_deltaUpp)
-    mismatch_deltaLow = 100*(1-match_deltaLow)
-
-    mismatch_delta = abs(np.mean([mismatch_deltaUpp, mismatch_deltaLow]))
 
     # ------------------------------------------------------------------
     # DIAGNOSTIC PLOTS
 
     print "~~~~~~~~~~~~~~~~~~~~~~~"
-    print "Mass: %.2f, mismatch: %.2f +/- %.2e (%%)"%(mass, mismatch,
-            mismatch_delta)
+    print "Mass: %.2f, mismatch: %.2f +%.2e -%.2e(%%)"%(mass, mismatch,
+            mismatch_deltaUpp, mismatch_deltaLow)
+
 
     # Normalise to unit SNR
     snr_approx_100 = pycbc.filter.sigma(hplus_approx, psd=noise_psd,
@@ -475,7 +521,8 @@ for m,mass in enumerate(masses):
     ax[m][1].set_xlim(9, 2e3)
 
 f.tight_layout()
-pl.show()
+f.savefig(savename.replace('.','p')+'png')
+#pl.show()
     # ------------------------------------------------------------------
 #
 sys.exit()
