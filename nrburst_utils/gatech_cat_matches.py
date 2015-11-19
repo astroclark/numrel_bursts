@@ -35,6 +35,7 @@ import lal
 from pylal import spawaveform
 import pycbc.types
 from pycbc.waveform import get_td_waveform, get_fd_waveform
+from pycbc.waveform import td_approximants, fd_approximants
 from pycbc.waveform import utils as wfutils
 import pycbc.filter
 from pycbc import pnutils
@@ -136,7 +137,7 @@ if int(sys.argv[1]) == 1:
             'Strain_Simframe_l2_m2_r75_D12_q2.00_a0.15_-0.60_m200.asc')
 
     savename='D12_q2.00_a0.15_-0.60_m200'
-    tlen=0
+    adhoctime=0
 
 # 2) Sq4_d9_a0.6_oth.270_rr_M180 
 if int(sys.argv[1])==2:
@@ -147,7 +148,7 @@ if int(sys.argv[1])==2:
     bounds['spin2x'] = [-0.61, -0.59]
     errors_file = os.path.join(data_path,
             'Strain_Simframe_l2_m2_r75_Sq4_d9_a0.6_oth.270_rr_M180.asc')
-    tlen = 0
+    adhoctime = 0
     savename='Sq4_d9_a0.6_oth.270_rr_M180'
 
 # 3) D7.5_q15.00_a0.0_CHgEEB_m800
@@ -156,7 +157,7 @@ if int(sys.argv[1]) == 3:
     bounds['q'] = [10, np.inf]
     errors_file = None
     savename='D7.5_q15.00_a0.0_CHgEEB_m800'
-    tlen = 0 
+    adhoctime = 0 
 
 
 #    4) RO3_D10_q1.50_a0.60_oth.090_M120
@@ -166,21 +167,20 @@ if int(sys.argv[1]) ==4:
     bounds['spin2z'] = [0.59, 0.61]
     errors_file = None
     savename='RO3_D10_q1.50_a0.60_oth.090_M120'
-    tlen=1
+    adhoctime=1
 
 #    5) q8_LL_D9_a0.6_th1_45_th2_225
 if int(sys.argv[1])==5:
     bounds['q'] = [7.5, 8.5]
     errors_file = None
     savename='q8_LL_D9_a0.6_th1_45_th2_225'
-    tlen=0
+    adhoctime=0
 
 # *************************************
 
 inc = 0 
 approx='SEOBNRv2'
 #approx='IMRPhenomPv2'
-#approx='IMRPhenomP'
 f_low_approx=20
 
 
@@ -195,6 +195,7 @@ maxMass = 500.0
 #
 delta_t = 1./4096
 datalen = 8
+delta_f = 1./datalen
 
 #
 # --- Noise Spectrum
@@ -315,7 +316,8 @@ for m,mass in enumerate(masses):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # APPROXIMANT 
 
-    if approx == 'SEOBNRv2':
+    #if approx == 'SEOBNRv2':
+    if approx in td_approximants():
 
         hplus_approx, hcross_approx = get_td_waveform(approximant=approx,
                 distance=distance,
@@ -328,14 +330,8 @@ for m,mass in enumerate(masses):
                 spin1z=simulations.simulations[0]['spin1z'],
                 spin2z=simulations.simulations[0]['spin2z'],
                 inclination=inc,
-                f_lower=f_low_approx * min(masses)/mass,
+                f_lower=10,
                 delta_t=delta_t)
-                #spin1x=simulations.simulations[0]['spin1x'],
-                #spin2x=simulations.simulations[0]['spin2x'],
-                #spin1y=simulations.simulations[0]['spin1y'],
-                #spin2y=simulations.simulations[0]['spin2y'],
-                #spin1z=simulations.simulations[0]['spin1z'],
-                #spin2z=simulations.simulations[0]['spin2z'],
 
         hplus_approx = wfutils.taper_timeseries(hplus_approx, 'TAPER_STARTEND')
         hcross_approx = wfutils.taper_timeseries(hcross_approx, 'TAPER_STARTEND')
@@ -345,7 +341,8 @@ for m,mass in enumerate(masses):
                 hcross_approx)
 
 
-    elif approx == 'IMRPhenomPv2' or approx == 'IMRPhenomP':
+    #elif approx == 'IMRPhenomPv2' or approx == 'IMRPhenomP':
+    elif approx in fd_approximants():
 
         Hplus_approx, Hcross_approx = get_fd_waveform(approximant=approx,
                 distance=distance,
@@ -358,30 +355,35 @@ for m,mass in enumerate(masses):
                 spin1z=simulations.simulations[0]['spin1z'],
                 spin2z=simulations.simulations[0]['spin2z'],
                 inclination=inc,
-                f_lower=f_low_approx * min(masses)/mass,
-                delta_f=hplus_NR.to_frequencyseries().delta_f)
+                f_lower=10,#f_low_approx * min(masses)/mass,
+                delta_f=delta_f)
 
-        tlen = int(1.0 / hplus_NR.delta_t / Hplus_approx.delta_f)
-
+        tlen = int(1.0 / delta_t / Hplus_approx.delta_f)
         Hplus_approx.resize(tlen/2 + 1)
+        delta_f = 1/(tlen*delta_t)
+
+        Hplus_tmp = pycbc.types.FrequencySeries(
+                np.copy(Hplus_approx.data[:]), delta_f=delta_f)
+
         hplus_approx = pycbc.types.TimeSeries(pycbc.types.zeros(tlen), delta_t=hplus_NR.delta_t)
-        fft.ifft(Hplus_approx, hplus_approx)
+        fft.ifft(Hplus_tmp, hplus_approx)
 
         Hcross_approx.resize(tlen/2 + 1)
         hcross_approx = pycbc.types.TimeSeries(pycbc.types.zeros(tlen), delta_t=hcross_NR.delta_t)
-        fft.ifft(Hcross_approx, hcross_approx)
+        Hcross_tmp = pycbc.types.FrequencySeries(
+                np.copy(Hcross_approx.data[:]), delta_f=delta_f)
+        fft.ifft(Hcross_tmp, hcross_approx)
 
     hplus_approx = wfutils.taper_timeseries(hplus_approx, 'TAPER_START')
     hcross_approx = wfutils.taper_timeseries(hcross_approx, 'TAPER_START')
+
 
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # MATCH CALCULATION 
 
     # Make the timeseries consistent lengths
-    tlen += max(len(hplus_approx), len(hplus_NR))
-
-
+    tlen = max(len(hplus_approx), len(hplus_NR)) + adhoctime
     hplus_approx.resize(tlen)
     hplus_NR.resize(tlen)
     hcross_approx.resize(tlen)
@@ -403,10 +405,20 @@ for m,mass in enumerate(masses):
     # pycbc.filter.match() later
     noise_psd = pycbc.types.FrequencySeries(asd**2, delta_f = delta_f)
 
+    if approx in td_approximants():
 
-    match, _ = pycbc.filter.match(hplus_approx, hplus_NR,
-            low_frequency_cutoff=30.0, psd=noise_psd,
-            high_frequency_cutoff=upp_bound)
+        match, _ = pycbc.filter.match(hplus_approx, hplus_NR,
+                low_frequency_cutoff=30.0, psd=noise_psd,
+                high_frequency_cutoff=upp_bound)
+
+    elif approx in fd_approximants():
+
+        tlen = int(1.0 / hplus_NR.delta_t / Hplus_approx.delta_f)
+        Hplus_approx.resize(tlen/2 + 1)
+
+        match, _ = pycbc.filter.match(Hplus_approx, hplus_NR,
+                low_frequency_cutoff=30.0, psd=noise_psd,
+                high_frequency_cutoff=upp_bound)
 
     
     # Errors
@@ -452,7 +464,6 @@ for m,mass in enumerate(masses):
         mismatch_delta = 0.0
 
     mismatch = 100*(1-match)
-
 
     # ------------------------------------------------------------------
     # DIAGNOSTIC PLOTS
