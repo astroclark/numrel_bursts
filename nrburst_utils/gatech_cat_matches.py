@@ -383,7 +383,7 @@ for m,mass in enumerate(masses):
     # MATCH CALCULATION 
 
     # Make the timeseries consistent lengths
-    tlen = max(len(hplus_approx), len(hplus_NR)) + adhoctime
+    tlen = max(len(hplus_approx), len(hplus_NR)) #+ adhoctime
     hplus_approx.resize(tlen)
     hplus_NR.resize(tlen)
     hcross_approx.resize(tlen)
