@@ -32,7 +32,6 @@ from scipy import signal
 import timeit
 
 import lal
-from pylal import spawaveform
 import pycbc.types
 from pycbc.waveform import get_td_waveform, get_fd_waveform
 from pycbc.waveform import td_approximants, fd_approximants
@@ -98,7 +97,8 @@ def scale_NR(times_codeunits, wave, mass, delta_t=1./2048):
     NR_datalen = len(times_codeunits)
     SI_deltaT_of_NR = mass * lal.MTSUN_SI * NR_deltaT
 
-    old_times = np.arange(0, NR_datalen*SI_deltaT_of_NR, SI_deltaT_of_NR)
+#    old_times = np.arange(0, NR_datalen*SI_deltaT_of_NR, SI_deltaT_of_NR)
+    old_times = np.linspace(0, NR_datalen*SI_deltaT_of_NR, len(wave))
     interp_times = np.arange(0, NR_datalen*SI_deltaT_of_NR, delta_t)
 
     resampled_wave = np.interp(interp_times, old_times, wave)
@@ -137,7 +137,6 @@ if int(sys.argv[1]) == 1:
             'Strain_Simframe_l2_m2_r75_D12_q2.00_a0.15_-0.60_m200.asc')
 
     savename='D12_q2.00_a0.15_-0.60_m200'
-    adhoctime=0
 
 # 2) Sq4_d9_a0.6_oth.270_rr_M180 
 if int(sys.argv[1])==2:
@@ -148,7 +147,6 @@ if int(sys.argv[1])==2:
     bounds['spin2x'] = [-0.61, -0.59]
     errors_file = os.path.join(data_path,
             'Strain_Simframe_l2_m2_r75_Sq4_d9_a0.6_oth.270_rr_M180.asc')
-    adhoctime = 0
     savename='Sq4_d9_a0.6_oth.270_rr_M180'
 
 # 3) D7.5_q15.00_a0.0_CHgEEB_m800
@@ -157,7 +155,6 @@ if int(sys.argv[1]) == 3:
     bounds['q'] = [10, np.inf]
     errors_file = None
     savename='D7.5_q15.00_a0.0_CHgEEB_m800'
-    adhoctime = 0 
 
 
 #    4) RO3_D10_q1.50_a0.60_oth.090_M120
@@ -167,21 +164,21 @@ if int(sys.argv[1]) ==4:
     bounds['spin2z'] = [0.59, 0.61]
     errors_file = None
     savename='RO3_D10_q1.50_a0.60_oth.090_M120'
-    adhoctime=1
 
 #    5) q8_LL_D9_a0.6_th1_45_th2_225
 if int(sys.argv[1])==5:
     bounds['q'] = [7.5, 8.5]
     errors_file = None
     savename='q8_LL_D9_a0.6_th1_45_th2_225'
-    adhoctime=0
 
 # *************************************
 
 inc = 0 
-approx='SEOBNRv2'
-#approx='IMRPhenomPv2'
+#approx='SEOBNRv2'
+approx='IMRPhenomPv2'
 f_low_approx=20
+
+savename+='_%s'%approx
 
 
 #
@@ -194,7 +191,7 @@ maxMass = 500.0
 # --- Time Series Config
 #
 delta_t = 1./4096
-datalen = 8
+datalen = 16.0
 delta_f = 1./datalen
 
 #
@@ -252,7 +249,7 @@ if errors_file is not None:
 
 # Set up the Masses we're going to study
 masses = np.linspace(simulations.simulations[0]['Mmin30Hz'], maxMass,
-        nMassPoints) + 5
+        nMassPoints) #+ 5
 
 # matches is going to be a list of tuples: (mass, match)
 matches = []
@@ -311,13 +308,14 @@ for m,mass in enumerate(masses):
 #
     hplus_NR = wfutils.taper_timeseries(hplus_NR, 'TAPER_STARTEND')
     hcross_NR = wfutils.taper_timeseries(hcross_NR, 'TAPER_STARTEND')
-#
+ 
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # APPROXIMANT 
 
     #if approx == 'SEOBNRv2':
     if approx in td_approximants():
+
 
         hplus_approx, hcross_approx = get_td_waveform(approximant=approx,
                 distance=distance,
@@ -330,12 +328,11 @@ for m,mass in enumerate(masses):
                 spin1z=simulations.simulations[0]['spin1z'],
                 spin2z=simulations.simulations[0]['spin2z'],
                 inclination=inc,
-                f_lower=10,
+                f_lower=f_low_approx * min(masses) / mass,
                 delta_t=delta_t)
 
         hplus_approx = wfutils.taper_timeseries(hplus_approx, 'TAPER_STARTEND')
         hcross_approx = wfutils.taper_timeseries(hcross_approx, 'TAPER_STARTEND')
-
 
         approx_freqs = wfutils.frequency_from_polarizations(hplus_approx,
                 hcross_approx)
@@ -361,29 +358,24 @@ for m,mass in enumerate(masses):
         tlen = int(1.0 / delta_t / Hplus_approx.delta_f)
         Hplus_approx.resize(tlen/2 + 1)
         delta_f = 1/(tlen*delta_t)
-
-        Hplus_tmp = pycbc.types.FrequencySeries(
-                np.copy(Hplus_approx.data[:]), delta_f=delta_f)
-
-        hplus_approx = pycbc.types.TimeSeries(pycbc.types.zeros(tlen), delta_t=hplus_NR.delta_t)
-        fft.ifft(Hplus_tmp, hplus_approx)
+        hplus_approx = Hplus_approx.to_timeseries()
 
         Hcross_approx.resize(tlen/2 + 1)
-        hcross_approx = pycbc.types.TimeSeries(pycbc.types.zeros(tlen), delta_t=hcross_NR.delta_t)
-        Hcross_tmp = pycbc.types.FrequencySeries(
-                np.copy(Hcross_approx.data[:]), delta_f=delta_f)
-        fft.ifft(Hcross_tmp, hcross_approx)
+        hcross_approx = Hcross_approx.to_timeseries()
 
     hplus_approx = wfutils.taper_timeseries(hplus_approx, 'TAPER_START')
     hcross_approx = wfutils.taper_timeseries(hcross_approx, 'TAPER_START')
-
-
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # MATCH CALCULATION 
 
     # Make the timeseries consistent lengths
-    tlen = max(len(hplus_approx), len(hplus_NR)) #+ adhoctime
+    tlen = datalen / delta_t
+
+    # Resize to next power of 2 after longest data
+    #maxlen = max(len(hplus_approx), len(hplus_NR))
+    #tlen = pow(2, np.ceil(np.log(len(hplus_approx))/np.log(2)));
+
     hplus_approx.resize(tlen)
     hplus_NR.resize(tlen)
     hcross_approx.resize(tlen)
@@ -420,7 +412,6 @@ for m,mass in enumerate(masses):
                 low_frequency_cutoff=30.0, psd=noise_psd,
                 high_frequency_cutoff=upp_bound)
 
-    
     # Errors
     if errors_file is not None:
 
@@ -465,6 +456,7 @@ for m,mass in enumerate(masses):
 
     mismatch = 100*(1-match)
 
+
     # ------------------------------------------------------------------
     # DIAGNOSTIC PLOTS
 
@@ -505,8 +497,11 @@ for m,mass in enumerate(masses):
     ax[m][0].set_xlim(-3, 1)
 
     # Fdomain
-    Hplus_approx = hplus_approx.to_frequencyseries()
     Hplus_NR = hplus_NR.to_frequencyseries()
+    if approx in td_approximants(): Hplus_approx = hplus_approx.to_frequencyseries()
+    elif approx in fd_approximants(): 
+        Hplus_approx /= snr_approx_100
+
     ax[m][1].loglog(Hplus_NR.sample_frequencies,
                plot_snr*2*abs(Hplus_NR)*np.sqrt(Hplus_NR.sample_frequencies),
                label='NR')
@@ -533,10 +528,7 @@ for m,mass in enumerate(masses):
 
 f.tight_layout()
 f.savefig(savename.replace('.','p')+'png')
-#pl.show()
-    # ------------------------------------------------------------------
-#
-sys.exit()
+        # ------------------------------------------------------------------
 
 
 
