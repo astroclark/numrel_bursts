@@ -88,10 +88,29 @@ if config.algorithm=='BW':
 
 
 elif config.algorithm=='CWB':
+
+    rec_ext_params = np.loadtxt(config.extrinsic_params)
+    sky_loc_geographic = lal.SkyPosition()
+    sky_loc_geographic.latitude = rec_ext_params[0]
+    sky_loc_geographic.longitude = rec_ext_params[1]
+    sky_loc_geographic.system=lal.COORDINATESYSTEM_GEOGRAPHIC
+
+    sky_loc_equatorial = lal.SkyPosition()
+    sky_loc_equatorial.system = lal.COORDINATESYSTEM_EQUATORIAL
+    lal.GeographicToEquatorial(sky_loc_equatorial, sky_loc_geographic,
+            lal.LIGOTimeGPS(1126259462))
+
+
+    rec_right_ascension = [sky_loc_equatorial.longitude]
+    rec_declination = [sky_loc_equatorial.latitude]
+    rec_polarization = [rec_ext_params[2]]
+
     reconstruction_data = nrbu.extract_wave(reconstruction_data, config.datalen,
             config.sample_rate)
     # Make it iterable so that the BW/CWB codes can be consistent
     reconstruction_data = [reconstruction_data]
+
+    setattr(config, 'nsampls', len(reconstruction_data))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Generate The catalog

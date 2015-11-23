@@ -312,7 +312,10 @@ def mismatch(params,
     if (mtotal >= min_mass) and (mtotal <= max_mass):
 
         # Generate the polarisations
-        hp, hc = get_wf_pols(nrfile, mtotal, inclination=inclination, delta_t=delta_t)
+        try:
+            hp, hc = get_wf_pols(nrfile, mtotal, inclination=inclination, delta_t=delta_t)
+        except:
+            return np.nan
 
         # Project to detector
         tmplt = project_waveform(hp, hc, skyloc=skyloc,
