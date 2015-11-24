@@ -289,8 +289,8 @@ a2crossL    = np.zeros(nsimulations_goodmatch)
 SeffdotL    = np.zeros(nsimulations_goodmatch)
 SeffcrossL  = np.zeros(nsimulations_goodmatch)
 theta_a12   = np.zeros(nsimulations_goodmatch)
-SdotL       = np.zeros(config.nsampls)
-theta_SdotL = np.zeros(config.nsampls)
+SdotL       = np.zeros(nsimulations_goodmatch)
+theta_SdotL = np.zeros(nsimulations_goodmatch)
 
 for s, sim in enumerate(simulations_goodmatch):
 
@@ -445,7 +445,7 @@ Nwaves=50
 if config.algorithm=='BW':
     f, ax = matchboxes(matches, simulations_goodmatch, Nwaves)
 elif config.algorithm=='CWB':
-    f, ax = matchpoints(matches, simulations_goodmatch, Nwaves)
+    f, ax = matchpoints(matches, simulations_goodmatch)
 ax.set_title('Top %d ranked waveforms (%s)'%(Nwaves,user_tag))
 f.tight_layout()
 f.savefig("%s_matchranking.png"%user_tag)

@@ -169,10 +169,10 @@ for n in xrange(len(simulations_goodmatch)):
     S_eff_y = nrbu.S_eff(sim['q'], sim['spin1y'], sim['spin2y'])
     S_eff_z = nrbu.S_eff(sim['q'], sim['spin1z'], sim['spin2z'])
 
-    th1L = np.arccos(a1dotL[s]/np.linalg.norm(\
+    th1L = np.arccos(a1dotL[n]/np.linalg.norm(\
             [sim['spin1x'], sim['spin1y'], sim['spin1z']]
             )) / lal.PI_180
-    th2L = np.arccos(a2dotL[s]/np.linalg.norm(\
+    th2L = np.arccos(a2dotL[n]/np.linalg.norm(\
             [sim['spin2x'], sim['spin2y'], sim['spin2z']]
             )) / lal.PI_180
 
@@ -183,13 +183,13 @@ for n in xrange(len(simulations_goodmatch)):
 
     data_dump_file.writelines(
             "%f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f %f\n"%(
-                median_matches[s], median_masses[s], median_chirp_masses[s],
-                mass_ratios[s], sym_mass_ratios[s], sim['a1'], sim['a2'],
+                median_matches[n], median_masses[n], median_chirp_masses[n],
+                mass_ratios[n], sym_mass_ratios[n], sim['a1'], sim['a2'],
                 sim['spin1x'], sim['spin1y'], sim['spin1z'],
                 sim['spin2x'], sim['spin2y'], sim['spin2z'],
                 S_eff_x, S_eff_y, S_eff_z,
-                a1dotL[s], a2dotL[s], a1crossL[s], a2crossL[s], SeffdotL[s],
-                SeffcrossL[s], theta_a12[s], SdotL[s], theta_SdotL[s], th1L,
+                a1dotL[n], a2dotL[n], a1crossL[n], a2crossL[n], SeffdotL[n],
+                SeffcrossL[n], theta_a12[n], SdotL[n], theta_SdotL[n], th1L,
                 th2L))
 
 data_dump_file.close()
