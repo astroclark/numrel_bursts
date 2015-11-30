@@ -371,7 +371,7 @@ def parser():
         print >> sys.stderr, "ERROR: require config file"
         sys.exit()
 
-    algorithms=["BW", "CWB"]
+    algorithms=["BW", "CWB", "HWINJ"]
     if opts.algorithm is not None and opts.algorithm not in algorithms:
         print >> sys.stderr, "ERROR: algorithm %s not recognised"%opts.algorithm
         print >> sys.stderr, "must be in ", algorithms

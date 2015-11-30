@@ -59,14 +59,13 @@ bounds['Mchirpmin30Hz'] = [-np.inf, config.min_chirp_mass]
 #
 print >> sys.stdout,  "Loading data"
 reconstruction_data = np.loadtxt(config.reconstruction)
+rec_ext_params = np.loadtxt(config.extrinsic_params)
 asd_data = np.loadtxt(config.spectral_estimate)
 
 # If BayesWave, select the user-specified number of samples for which we will
 # compute matches (useful for speed / development work)
 if config.algorithm=='BW':
 
-    # Load extrinsic parameters
-    rec_ext_params = np.loadtxt(config.extrinsic_params)
     rec_right_ascension = rec_ext_params[:,2] / lal.PI_180
     rec_declination     = np.arcsin(rec_ext_params[:,3]) / lal.PI_180
     rec_polarization    = rec_ext_params[:,4] / lal.PI_180
@@ -89,7 +88,6 @@ if config.algorithm=='BW':
 
 elif config.algorithm=='CWB':
 
-    rec_ext_params = np.loadtxt(config.extrinsic_params)
     sky_loc_geographic = lal.SkyPosition()
     sky_loc_geographic.latitude = rec_ext_params[0]
     sky_loc_geographic.longitude = rec_ext_params[1]
@@ -107,6 +105,20 @@ elif config.algorithm=='CWB':
 
     reconstruction_data = nrbu.extract_wave(reconstruction_data, config.datalen,
             config.sample_rate)
+    # Make it iterable so that the BW/CWB codes can be consistent
+    reconstruction_data = [reconstruction_data]
+
+    setattr(config, 'nsampls', len(reconstruction_data))
+
+elif config.algorithm=='HWINJ':
+
+    rec_right_ascension = [rec_ext_params[0] / lal.PI_180]
+    rec_declination     = [rec_ext_params[1] / lal.PI_180]
+    rec_polarization    = [rec_ext_params[2] / lal.PI_180]
+
+    reconstruction_data = nrbu.extract_wave(reconstruction_data, config.datalen,
+            config.sample_rate)
+
     # Make it iterable so that the BW/CWB codes can be consistent
     reconstruction_data = [reconstruction_data]
 
