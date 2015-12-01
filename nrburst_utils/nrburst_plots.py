@@ -139,7 +139,10 @@ def fancy_scatter_plot(param1x, param2x, paramy, label1x='x', label2x='y',
 
     cbar_ax = f.add_axes([0.13, 0.125, 0.8, 0.05])
     colbar = f.colorbar(scat_all, orientation='horizontal', cax=cbar_ax) 
-    colbar.set_label('Median Fit Factor')
+    if config.algorithm=='BW':
+        colbar.set_label('Median Fit Factor')
+    else:
+        colbar.set_label('Fit Factor')
 
 
     return f, ax
@@ -195,7 +198,7 @@ def matchboxes(matches, simulations, Nwaves):
 
     return f, ax
 
-def matchpoints(matches, simulations):
+def matchpoints(matches, simulations, Nwaves):
     """
     Build a plot to show individual waveform match results from
     CWB.  Since we're optimising over mass, this is fitting-factor.
@@ -219,7 +222,7 @@ def matchpoints(matches, simulations):
     ax.minorticks_on()
 
     ax.set_yticks(xrange(len(matches)))
-    ax.set_ylim(len(matches)-25.5, len(matches)-0.5)
+    ax.set_ylim(len(mean_matches)-(Nwaves+0.5), len(mean_matches)+0.5)
     ax.set_xlim(0.85,0.95)
 
     ylabels=make_labels(np.array(simulations)[match_sort])
@@ -261,7 +264,7 @@ if opts.user_tag is None:
 # Remove NR waveforms in which the mean match was less than some threshold
 mean_matches = np.mean(matches, axis=1)
 
-nonzero_match = mean_matches>opts.match_threshold
+nonzero_match = mean_matches>=opts.match_threshold
 matches = matches[nonzero_match]
 masses = masses[nonzero_match]
 
@@ -381,23 +384,23 @@ f.savefig("%s_massratio-a1dotLa2dotL.png"%user_tag)
 #   f.tight_layout()
 #   f.savefig("%s_totalmass-SeffdotL.png"%user_tag)
 #
-# --- mass ratio vs a1.L Scatter plot
-f, ax = scatter_plot(param1=mass_ratios, param2=a1dotL,
-        matches=median_matches, param1err=None, param2err=None, 
-        label1='$q$',
-        label2=r'$\hat{\mathrm{S}}_1 . \hat{L}$')
-#ax.set_title(user_tag)
-f.tight_layout()
-f.savefig("%s_massratio-a1dotL.png"%user_tag)
-
-# --- mass ratio vs a2.L Scatter plot
-f, ax = scatter_plot(param1=mass_ratios, param2=a2dotL,
-        matches=median_matches, param1err=None, param2err=None, 
-        label1='$q$',
-        label2=r'$\hat{\mathrm{S}}_2 . \hat{L}$')
-#ax.set_title(user_tag)
-f.tight_layout()
-f.savefig("%s_massratio-a2dotL.png"%user_tag)
+#   # --- mass ratio vs a1.L Scatter plot
+#   f, ax = scatter_plot(param1=mass_ratios, param2=a1dotL,
+#           matches=median_matches, param1err=None, param2err=None, 
+#           label1='$q$',
+#           label2=r'$\hat{\mathrm{S}}_1 . \hat{L}$')
+#   #ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-a1dotL.png"%user_tag)
+#
+#   # --- mass ratio vs a2.L Scatter plot
+#   f, ax = scatter_plot(param1=mass_ratios, param2=a2dotL,
+#           matches=median_matches, param1err=None, param2err=None, 
+#           label1='$q$',
+#           label2=r'$\hat{\mathrm{S}}_2 . \hat{L}$')
+#   #ax.set_title(user_tag)
+#   f.tight_layout()
+#   f.savefig("%s_massratio-a2dotL.png"%user_tag)
 
 
 #   # --- a1.L vs a2.L Scatter plot
@@ -445,7 +448,8 @@ Nwaves=50
 if config.algorithm=='BW':
     f, ax = matchboxes(matches, simulations_goodmatch, Nwaves)
 elif config.algorithm=='CWB':
-    f, ax = matchpoints(matches, simulations_goodmatch)
+    Nwaves=25
+    f, ax = matchpoints(matches, simulations_goodmatch, Nwaves)
 ax.set_title('Top %d ranked waveforms (%s)'%(Nwaves,user_tag))
 f.tight_layout()
 f.savefig("%s_matchranking.png"%user_tag)
