@@ -255,7 +255,7 @@ matches, masses, inclinations, config, simulations, _, _, _ = pickle.load(
 
 # Label figures according to the pickle file
 if opts.user_tag is None:
-    user_tag=args[0].strip('.pickle')
+    user_tag=args[0].replace('.pickle','')
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Manipulation and derived FOMs
@@ -346,6 +346,31 @@ print "   * S_eff.L=%f"%(SeffdotL[matchsort][-1])
 print "   * |S_eff x L|=%f"%(SeffcrossL[matchsort][-1])
 print "   * S.L=%f"%(SdotL[matchsort][-1])
 
+f=open("%s_summary.txt"%user_tag, 'w')
+f.writelines("* Highest (median) Match: %f +/- %f\n"%(median_matches[matchsort][-1],
+    std_matches[matchsort][-1]))
+f.writelines("* Waveform: %s\n"%(
+    simulations_goodmatch[matchsort][-1]['wavefile'].split('/')[-1]))
+f.writelines("* mass ratio: %f\n"%(mass_ratios[matchsort][-1]))
+f.writelines("* total mass: %f +/- %f\n"%(median_masses[matchsort][-1],
+        std_masses[matchsort][-1]))
+f.writelines("* chirp mass: %f +/- %f\n"%(median_chirp_masses[matchsort][-1],
+        std_chirp_masses[matchsort][-1]))
+f.writelines("* |a1|: %f, |a2|=%f\n"%(
+    np.around(simulations_goodmatch[matchsort][-1]['a1'],
+        decimals=nrbu.__metadata_ndecimals__),
+    np.around(simulations_goodmatch[matchsort][-1]['a2'],
+        decimals=nrbu.__metadata_ndecimals__)))
+f.writelines("* a1.L: %f, a2.L=%f\n"%(a1dotL[matchsort][-1],
+    a2dotL[matchsort][-1]))
+f.writelines("* a1 x L: %f, a2 x L=%f\n"%(a1crossL[matchsort][-1],
+        a2crossL[matchsort][-1]))
+f.writelines("* theta12=%f\n"%(theta_a12[matchsort][-1]))
+f.writelines("* S_eff.L=%f\n"%(SeffdotL[matchsort][-1]))
+f.writelines("* |S_eff x L|=%f\n"%(SeffcrossL[matchsort][-1]))
+f.writelines("* S.L=%f\n"%(SdotL[matchsort][-1]))
+f.close()
+
 
 if opts.no_plot: sys.exit(0)
 
@@ -369,11 +394,9 @@ ax[0].annotate('# sims: %d'%len(simulations_goodmatch), (-0.9, 1.1))
 
 f.tight_layout()
 pl.subplots_adjust(bottom=0.3)
-f.savefig("%s_massratio-a1dotLa2dotL.png"%user_tag)
+f.savefig("%s_FF_s1dotLs2dotL-q.eps"%user_tag)
+f.savefig("%s_FF_s1dotLs2dotL-q.png"%user_tag)
 
-
-#pl.show()
-#sys.exit()
 
 #   # --- Mass vs SeffdotL
 #   f, ax = scatter_plot(param1=median_masses, param2=SeffdotL,
@@ -450,9 +473,14 @@ if config.algorithm=='BW':
 elif config.algorithm=='CWB':
     Nwaves=25
     f, ax = matchpoints(matches, simulations_goodmatch, Nwaves)
+elif config.algorithm=='HWINJ':
+    Nwaves=25
+    f, ax = matchpoints(matches, simulations_goodmatch, Nwaves)
+    ax.set_xlim(0.8,1)
 ax.set_title('Top %d ranked waveforms (%s)'%(Nwaves,user_tag))
 f.tight_layout()
-f.savefig("%s_matchranking.png"%user_tag)
+f.savefig("%s_FF_ranking.eps"%user_tag)
+f.savefig("%s_FF_ranking.png"%user_tag)
 
 #pl.show()
 
