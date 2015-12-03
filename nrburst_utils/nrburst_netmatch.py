@@ -147,6 +147,8 @@ if getattr(opts, 'simulation_number') != "all":
             [simulations.simulations[opts.simulation_number]])
     setattr(simulations, 'nsimulations', len(simulations.simulations))
 
+    filename=opts.user_tag+'_'+config.algorithm+'_nrsim-'+str(opts.simulation_number)+'.pickle'
+
 if getattr(opts, 'hdf5file') is not None:
     # Locate the simulation for this file
     wavefiles = [os.path.basename(sim['wavefile']) for sim in
@@ -154,6 +156,8 @@ if getattr(opts, 'hdf5file') is not None:
     setattr(simulations, 'simulations',
             [simulations.simulations[wavefiles.index(opts.hdf5file)]])
     setattr(simulations, 'nsimulations', len(simulations.simulations))
+
+    filename=opts.user_tag+'_'+config.algorithm+'_nrsim-'+str(opts.hdf5file).replace('.h5','')+'.pickle'
 
 # Useful time/freq samples
 time_axis = np.arange(config.datalen, config.delta_t)
@@ -469,8 +473,6 @@ for w in xrange(simulations.nsimulations):
             chirp_mass, masses[2,w,l_bestidx], inclinations[2,w,l_bestidx])
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Dump data
-
-filename=opts.user_tag+'_'+config.algorithm+'_nrsim-'+str(opts.simulation_number)+'.pickle'
 
 # Dump results and configuration to pickle
 pickle.dump([matches, masses, inclinations, config, simulations,
