@@ -153,6 +153,7 @@ if getattr(opts, 'hdf5file') is not None:
         simulations.simulations]
     setattr(simulations, 'simulations',
             [simulations.simulations[wavefiles.index(opts.hdf5file)]])
+    setattr(simulations, 'nsimulations', len(simulations.simulations))
 
 # Useful time/freq samples
 time_axis = np.arange(config.datalen, config.delta_t)
