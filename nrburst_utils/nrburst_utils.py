@@ -405,6 +405,7 @@ def parser():
     parser.add_option("-o", "--output-dir", type=str, default=None)
     parser.add_option("-a", "--algorithm", type=str, default=None)
     parser.add_option("-s", "--simulation-number", type=str, default="all")
+    parser.add_option("-w", "--hdf5file", type=str, default=None)
 
     (opts,args) = parser.parse_args()
 

@@ -147,6 +147,13 @@ if getattr(opts, 'simulation_number') != "all":
             [simulations.simulations[opts.simulation_number]])
     setattr(simulations, 'nsimulations', len(simulations.simulations))
 
+if getattr(opts, 'hdf5file') is not None:
+    # Locate the simulation for this file
+    wavefiles = [os.path.basename(sim['wavefile']) for sim in
+        simulations.simulations]
+    setattr(simulations, 'simulations',
+            [simulations.simulations[wavefiles.index(opts.hdf5file)]])
+
 # Useful time/freq samples
 time_axis = np.arange(config.datalen, config.delta_t)
 freq_axis = np.arange(0.5*config.datalen/config.delta_t+1./config.datalen) * 1./config.datalen
