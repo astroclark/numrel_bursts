@@ -290,10 +290,9 @@ def project_waveform(hp, hc, skyloc=(0.0, 0.0), polarization=0.0, detector_name=
 
     return signal
 
-
-def mismatch(params,
-        skyloc=(0,0), polarization=0, nrfile=None, detector_name="H1",
-        mass_bounds=None, rec_data=None, asd=None, delta_t=1./1024, f_min=30.0):
+def single_ifo_match(params, nrfile=None, skyloc=None, polarization=None,
+        detector_name="H1", mass_bounds=None, rec_data=None, asd=None,
+        delta_t=1./1024, f_min=30.0):
     """
     Compute mismatch (1-match) between the tmplt wave and the event wave, given
     the total mass.  Uses rec_data and psd which are defined globally in the
@@ -317,9 +316,12 @@ def mismatch(params,
         except:
             return np.nan
 
-        # Project to detector
-        tmplt = project_waveform(hp, hc, skyloc=skyloc,
-                polarization=polarization, detector_name=detector_name)
+        if skyloc is None and polarization is None:
+            tmplt = hp
+        else:
+            # Project to detector
+            tmplt = project_waveform(hp, hc, skyloc=skyloc,
+                    polarization=polarization, detector_name=detector_name)
 
         # Put the reconstruction data in a TimeSeries
         rec_data = pycbc.types.TimeSeries(rec_data, delta_t=delta_t)
@@ -328,7 +330,6 @@ def mismatch(params,
         tlen = max(len(tmplt), len(rec_data))
         tmplt.resize(tlen)
         rec_data.resize(tlen)
-
 
         # Whiten the template
         Tmplt = tmplt.to_frequencyseries()
@@ -340,12 +341,57 @@ def mismatch(params,
         except ZeroDivisionError:
             match = np.nan
 
-        return 1-match
+        return match
 
     else:
         # Outside of mass range
 
-        return 1.
+        return 0
+
+def single_ifo_mismatch(params, nrfile=None, skyloc=None, polarization=None,
+        detector_name="H1", mass_bounds=None, rec_data=None, asd=None,
+        delta_t=1./1024, f_min=30.0):
+
+    return 1-single_ifo_match(params, nrfile=nrfile, skyloc=skyloc,
+            polarization=polarization, detector_name=detector_name,
+            mass_bounds=mass_bounds, rec_data=rec_data, asd=asd,
+            delta_t=delta_t, f_min=f_min)
+
+
+def network_match(params, nrfile=None, skyloc=None, polarization=None,
+        mass_bounds=None, h1_rec_data=None, h1_asd=None, l1_rec_data=None,
+        l1_asd=None, delta_t=1./1024, f_min=30.0):
+    """
+    Compute mismatch (1-match) between the tmplt wave and the event wave, given
+    the total mass.  Uses rec_data and psd which are defined globally in the
+    calling script.
+
+    Note: the reconstructed waveform which is passed in should be the whitened
+    detector response, so that the template waveform is whitened by the ASD
+    prior to the match calculation, and no PSD is passed directly to match().
+
+    """
+
+    h1_match = single_ifo_match(params, nrfile=nrfile, skyloc=skyloc,
+            polarization=polarization, detector_name="H1",
+            mass_bounds=mass_bounds, rec_data=h1_rec_data, asd=h1_asd,
+            delta_t=delta_t, f_min=f_min)
+
+    l1_match = single_ifo_match(params, nrfile=nrfile, skyloc=skyloc,
+            polarization=polarization, detector_name="L1",
+            mass_bounds=mass_bounds, rec_data=l1_rec_data, asd=l1_asd,
+            delta_t=delta_t, f_min=f_min)
+
+    return 0.5*(h1_match + l1_match)
+
+def network_mismatch(params, nrfile=None, skyloc=None, polarization=None,
+        mass_bounds=None, h1_rec_data=None, h1_asd=None, l1_rec_data=None,
+        l1_asd=None, delta_t=1./1024, f_min=30.0):
+
+    return 1-network_match(params, nrfile=nrfile, skyloc=skyloc,
+            polarization=polarization, mass_bounds=mass_bounds,
+            h1_rec_data=h1_rec_data, h1_asd=h1_asd, l1_rec_data=l1_rec_data,
+            l1_asd=l1_asd, delta_t=delta_t, f_min=f_min)
 
 
 def parser():
@@ -415,7 +461,6 @@ class configuration:
         self.datalen=configparser.getfloat('analysis', 'datalen')
         self.f_min=configparser.getfloat('analysis', 'f-min')
         self.algorithm=configparser.get('analysis', 'algorithm')
-        self.detector_name=configparser.get('analysis', 'detector-name')
 
         try:
             self.nsampls=configparser.getint('parameters', 'nsampls')
@@ -424,8 +469,10 @@ class configuration:
         self.min_chirp_mass=configparser.getfloat('parameters', 'min-chirp-mass')
         self.max_chirp_mass=configparser.getfloat('parameters', 'max-chirp-mass')
 
-        self.reconstruction=configparser.get('paths', 'reconstruction')
-        self.spectral_estimate=configparser.get('paths', 'spectral-estimate')
+        self.h1_reconstruction=configparser.get('paths', 'h1_reconstruction')
+        self.h1_spectral_estimate=configparser.get('paths', 'h1_spectral-estimate')
+        self.l1_reconstruction=configparser.get('paths', 'l1_reconstruction')
+        self.l1_spectral_estimate=configparser.get('paths', 'l1_spectral-estimate')
         self.catalog=configparser.get('paths', 'catalog')
         self.extrinsic_params=configparser.get('paths', 'extrinsic-params')
 
