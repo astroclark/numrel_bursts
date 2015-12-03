@@ -436,33 +436,33 @@ for w in xrange(simulations.nsimulations):
     print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     print >> sys.stdout, "HL Best Match:"
 
-    chirp_mass = masses[w,bestidx]*simulations.simulations[w]['eta']**(3./5.)
+    chirp_mass = masses[w,hl_bestidx]*simulations.simulations[w]['eta']**(3./5.)
 
     print >> sys.stdout, "Fit-factor: %.2f"%(matches[0,w,hl_bestidx])
     print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
-            chirp_mass, masses[0,w,bestidx], inclinations[0,w,bestidx])
+            chirp_mass, masses[0,w,hl_bestidx], inclinations[0,w,hl_bestidx])
 
     print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     print >> sys.stdout, "H1 Best Match:"
 
-    chirp_mass = masses[1,w,bestidx]*simulations.simulations[w]['eta']**(3./5.)
+    chirp_mass = masses[1,w,h_bestidx]*simulations.simulations[w]['eta']**(3./5.)
 
-    print >> sys.stdout, "Fit-factor: %.2f"%(matches[1,w,bestidx])
+    print >> sys.stdout, "Fit-factor: %.2f"%(matches[1,w,h_bestidx])
     print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
-            chirp_mass, masses[1,w,bestidx], inclinations[1,w,bestidx])
+            chirp_mass, masses[1,w,h_bestidx], inclinations[1,w,h_bestidx])
 
     print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     print >> sys.stdout, "L1 Best Match:"
 
-    chirp_mass = masses[2,w,bestidx]*simulations.simulations[w]['eta']**(3./5.)
+    chirp_mass = masses[2,w,l_bestidx]*simulations.simulations[w]['eta']**(3./5.)
 
-    print >> sys.stdout, "Fit-factor: %.2f"%(matches[2,w,bestidx])
+    print >> sys.stdout, "Fit-factor: %.2f"%(matches[2,w,l_bestidx])
     print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
-            chirp_mass, masses[2,w,bestidx], inclinations[2,w,bestidx])
+            chirp_mass, masses[2,w,l_bestidx], inclinations[2,w,l_bestidx])
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Dump data
 
-filename=config.detector_name+'_'+opts.user_tag+'_'+config.algorithm+'_nrsim-'+str(opts.simulation_number)+'.pickle'
+filename=opts.user_tag+'_'+config.algorithm+'_nrsim-'+str(opts.simulation_number)+'.pickle'
 
 # Dump results and configuration to pickle
 pickle.dump([matches, masses, inclinations, config, simulations,
