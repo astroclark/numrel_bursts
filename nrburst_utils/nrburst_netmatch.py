@@ -282,62 +282,62 @@ for w in xrange(simulations.nsimulations):
 
         then = timeit.time.time()
 
-        # ################### H1 ################ #
-        print "--- Analysing H1 ---"
-        h1_result = scipy.optimize.fmin(nrbu.single_ifo_mismatch,
-                x0=init_guess,
-                args=(
-                    simulations.simulations[w]['wavefile'],
-                    None, None,
-                    'H1',
-                    (min_mass, max_mass),
-                    h1_sampled_waveform, h1_asd, config.delta_t
-                    ), xtol=1e-3, ftol=1e-3, maxfun=10000,
-                full_output=True, retall=True, disp=True)
-
-        now = timeit.time.time()
-        print >> sys.stdout,  "...mass optimisation took %.3f sec..."%(now-then)
-
-        matches[1,w,s] = 1-h1_result[1]
-        masses[1,w,s]  = h1_result[0][0]
-        inclinations[1,w,s]  = h1_result[0][1]
-
-        chirp_mass = masses[1,w,s]*simulations.simulations[w]['eta']**(3./5.)
-
-        print >> sys.stdout, ""
-        print >> sys.stdout, "Fit-factor: %.2f"%(matches[1,w,s])
-        print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
-                chirp_mass, masses[1,w,s], inclinations[1,w, s])
-        print >> sys.stdout, ""
-
-        # ################### L1 ################ #
-        print "--- Analysing L1 ---"
-        l1_result = scipy.optimize.fmin(nrbu.single_ifo_mismatch,
-                x0=init_guess,
-                args=(
-                    simulations.simulations[w]['wavefile'],
-                    None, None,
-                    'L1',
-                    (min_mass, max_mass),
-                    l1_sampled_waveform, l1_asd, config.delta_t
-                    ), xtol=1e-3, ftol=1e-3, maxfun=10000,
-                full_output=True, retall=True, disp=True)
-
-        now = timeit.time.time()
-        print >> sys.stdout,  "...mass optimisation took %.3f sec..."%(now-then)
-
-        matches[2,w,s] = 1-l1_result[1]
-        masses[2,w,s]  = l1_result[0][0]
-        inclinations[2,w,s]  = l1_result[0][1]
-
-        chirp_mass = masses[2,w,s]*simulations.simulations[w]['eta']**(3./5.)
-
-        print >> sys.stdout, ""
-        print >> sys.stdout, "Fit-factor: %.2f"%(matches[2,w,s])
-        print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
-                chirp_mass, masses[2,w,s], inclinations[2,w,s])
-        print >> sys.stdout, ""
-
+#       # ################### H1 ################ #
+#       print "--- Analysing H1 ---"
+#       h1_result = scipy.optimize.fmin(nrbu.single_ifo_mismatch,
+#               x0=init_guess,
+#               args=(
+#                   simulations.simulations[w]['wavefile'],
+#                   None, None,
+#                   'H1',
+#                   (min_mass, max_mass),
+#                   h1_sampled_waveform, h1_asd, config.delta_t
+#                   ), xtol=1e-3, ftol=1e-3, maxfun=10000,
+#               full_output=True, retall=True, disp=True)
+#
+#       now = timeit.time.time()
+#       print >> sys.stdout,  "...mass optimisation took %.3f sec..."%(now-then)
+#
+#       matches[1,w,s] = 1-h1_result[1]
+#       masses[1,w,s]  = h1_result[0][0]
+#       inclinations[1,w,s]  = h1_result[0][1]
+#
+#       chirp_mass = masses[1,w,s]*simulations.simulations[w]['eta']**(3./5.)
+#
+#       print >> sys.stdout, ""
+#       print >> sys.stdout, "Fit-factor: %.2f"%(matches[1,w,s])
+#       print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
+#               chirp_mass, masses[1,w,s], inclinations[1,w, s])
+#       print >> sys.stdout, ""
+#
+#       # ################### L1 ################ #
+#       print "--- Analysing L1 ---"
+#       l1_result = scipy.optimize.fmin(nrbu.single_ifo_mismatch,
+#               x0=init_guess,
+#               args=(
+#                   simulations.simulations[w]['wavefile'],
+#                   None, None,
+#                   'L1',
+#                   (min_mass, max_mass),
+#                   l1_sampled_waveform, l1_asd, config.delta_t
+#                   ), xtol=1e-3, ftol=1e-3, maxfun=10000,
+#               full_output=True, retall=True, disp=True)
+#
+#       now = timeit.time.time()
+#       print >> sys.stdout,  "...mass optimisation took %.3f sec..."%(now-then)
+#
+#       matches[2,w,s] = 1-l1_result[1]
+#       masses[2,w,s]  = l1_result[0][0]
+#       inclinations[2,w,s]  = l1_result[0][1]
+#
+#       chirp_mass = masses[2,w,s]*simulations.simulations[w]['eta']**(3./5.)
+#
+#       print >> sys.stdout, ""
+#       print >> sys.stdout, "Fit-factor: %.2f"%(matches[2,w,s])
+#       print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
+#               chirp_mass, masses[2,w,s], inclinations[2,w,s])
+#       print >> sys.stdout, ""
+#
 
         # ################### HL ################ #
 
@@ -358,7 +358,7 @@ for w in xrange(simulations.nsimulations):
         print >> sys.stdout,  "...mass optimisation took %.3f sec..."%(now-then)
 
         matches[0,w,s] = 1-hl_result[1]
-        masses[0,w,s]  = l1_result[0][0]
+        masses[0,w,s]  = hl_result[0][0]
         inclinations[0,w,s]  = hl_result[0][1]
 
         chirp_mass = masses[0,w,s]*simulations.simulations[w]['eta']**(3./5.)
