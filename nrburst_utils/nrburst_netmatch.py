@@ -448,7 +448,7 @@ for w in xrange(simulations.nsimulations):
     print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     print >> sys.stdout, "HL Best Match:"
 
-    chirp_mass = masses[w,hl_bestidx]*simulations.simulations[w]['eta']**(3./5.)
+    chirp_mass = masses[0,w,hl_bestidx]*simulations.simulations[w]['eta']**(3./5.)
 
     print >> sys.stdout, "Fit-factor: %.2f"%(matches[0,w,hl_bestidx])
     print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
