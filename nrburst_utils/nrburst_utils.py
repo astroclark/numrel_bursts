@@ -70,8 +70,8 @@ def extract_wave(inwave, datalen=4.0, sample_rate = 4096):
     Extract a subsection of a reconstructed waveform; useful for cleaning CWB
     reconstruction
     """
-    extract_len = 0.5 # retain this many seconds of reconstruction
-    delta = 0.15 # center the retained data on the peak of the waveform minus
+    extract_len = 2.0 # retain this many seconds of reconstruction
+    delta = 0.5 # center the retained data on the peak of the waveform minus
                  # this many seconds
     peakidx = np.argmax(abs(inwave)) - delta*sample_rate
     nsamp = extract_len * sample_rate
