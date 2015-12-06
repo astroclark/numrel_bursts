@@ -121,9 +121,9 @@ elif config.algorithm=='HWINJ':
     rec_declination     = [rec_ext_params[1] / lal.PI_180]
     rec_polarization    = [rec_ext_params[2] / lal.PI_180]
 
-    h1_reconstruction_data = [nrbu.extract_wave(reconstruction_data,
+    h1_reconstruction_data = [nrbu.extract_wave(h1_reconstruction_data,
         config.datalen, config.sample_rate)]
-    l1_reconstruction_data = [nrbu.extract_wave(reconstruction_data,
+    l1_reconstruction_data = [nrbu.extract_wave(l1_reconstruction_data,
         config.datalen, config.sample_rate)]
 
     setattr(config, 'nsampls', 1)
@@ -158,6 +158,9 @@ if getattr(opts, 'hdf5file') is not None:
     setattr(simulations, 'nsimulations', len(simulations.simulations))
 
     filename=opts.user_tag+'_'+config.algorithm+'_nrsim-'+str(opts.hdf5file).replace('.h5','')+'.pickle'
+
+else:
+    filename=opts.user_tag+'_'+config.algorithm+'.pickle'
 
 # Useful time/freq samples
 time_axis = np.arange(config.datalen, config.delta_t)
