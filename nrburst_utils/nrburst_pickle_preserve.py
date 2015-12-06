@@ -34,28 +34,35 @@ current_matches, current_masses, current_inclinations, config, \
         simulations, __author__, __version__, __date__ = \
         pickle.load(open(pickle_files[0],'r'))
 
-nSims = len(pickle_files)
-nsampls = config.nsampls
+if config.algorithm=='BW':
 
-# --- Preallocate
-matches = np.zeros(shape=(nSims, nsampls))
-masses  = np.zeros(shape=(nSims, nsampls))
-inclinations = np.zeros(shape=(nSims, nsampls))
+    nSims = len(simulations.simulations)
+    nsampls = config.nsampls
 
-# be a bit careful with the simulations object
-setattr(simulations, 'simulations', [])
-setattr(simulations, 'nsimulations', nSims)
+    # --- Preallocate
+    matches = np.zeros(shape=(nSims, nsampls))
+    masses  = np.zeros(shape=(nSims, nsampls))
+    inclinations = np.zeros(shape=(nSims, nsampls))
 
-for f, file in enumerate(pickle_files):
-    current_matches, current_masses, current_inclinations, config, \
-            current_simulations, __author__, __version__, __date__ = \
-            pickle.load(open(file,'r'))
+    # be a bit careful with the simulations object
+    setattr(simulations, 'simulations', [])
+    setattr(simulations, 'nsimulations', nSims)
 
-    matches[f,:] = current_matches[0][0]
-    masses[f,:]  = current_masses[0][0]
-    inclinations[f,:] = current_inclinations[0][0]
+    for f, file in enumerate(pickle_files):
+        current_matches, current_masses, current_inclinations, config, \
+                current_simulations, __author__, __version__, __date__ = \
+                pickle.load(open(file,'r'))
 
-    simulations.simulations.append(current_simulations.simulations[0])
+        matches[f,:] = current_matches[0][0]
+        masses[f,:]  = current_masses[0][0]
+        inclinations[f,:] = current_inclinations[0][0]
+
+        simulations.simulations.append(current_simulations.simulations[0])
+
+else:
+    matches = current_matches[0]
+    masses  = current_masses[0]
+    inclinations = current_inclinations[0]
 
 filename=user_tag+'_'+config.algorithm+'.pickle'
 
