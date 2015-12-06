@@ -64,17 +64,44 @@ def parser():
 
 opts, args = parser()
 
-results_files=args.split(',')
+results_data=np.loadtxt(args[0],dtype=str)
 
-for result_file in resutls_files:
+tag = args[1]
+
+injected_mass = np.zeros(len(results_data))
+injected_chirp_mass = np.zeros(len(results_data))
+injected_a1z = np.zeros(len(results_data))
+injected_a2z = np.zeros(len(results_data))
+
+best_match = np.zeros(len(results_data))
+best_mass = np.zeros(len(results_data))
+best_chirp_mass = np.zeros(len(results_data))
+
+sigma_best_match = np.zeros(len(results_data))
+sigma_best_mass = np.zeros(len(results_data))
+sigma_best_chirp_mass = np.zeros(len(results_data))
+
+best_a1dotL = np.zeros(len(results_data))
+best_a2dotL = np.zeros(len(results_data))
+
+best_mass_ratio = np.zeros(len(results_data))
+
+for d,data in enumerate(results_data):
+
+    results_file = os.path.join(data[0], data[0]+'_'+sys.argv[2]+'.pickle')
+    injected_mass[d] = float(data[1])+float(data[2])
+    injected_chirp_mass[d], injected_eta  = pnutils.mass1_mass2_to_mchirp_eta(
+            float(data[1]),float(data[2]))
+    injected_a1z[d] = float(data[3])
+    injected_a2z[d] = float(data[4])
 
     matches, masses, inclinations, config, simulations, _, _, _ = pickle.load(
-            open(args[0], 'rb'))
+            open(results_file, 'rb'))
 
 
     # Label figures according to the pickle file
     if opts.user_tag is None:
-        user_tag=args[0].replace('.pickle','')
+        user_tag=results_file.replace('.pickle','')
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     # Manipulation and derived FOMs
@@ -106,13 +133,6 @@ for result_file in resutls_files:
 
     a1dotL      = np.zeros(nsimulations_goodmatch)
     a2dotL      = np.zeros(nsimulations_goodmatch)
-    a1crossL    = np.zeros(nsimulations_goodmatch)
-    a2crossL    = np.zeros(nsimulations_goodmatch)
-    SeffdotL    = np.zeros(nsimulations_goodmatch)
-    SeffcrossL  = np.zeros(nsimulations_goodmatch)
-    theta_a12   = np.zeros(nsimulations_goodmatch)
-    SdotL       = np.zeros(nsimulations_goodmatch)
-    theta_SdotL = np.zeros(nsimulations_goodmatch)
 
     for s, sim in enumerate(simulations_goodmatch):
 
@@ -122,17 +142,6 @@ for result_file in resutls_files:
         a1dotL[s] = sim['a1dotL']
         a2dotL[s] = sim['a2dotL']
 
-        a1crossL[s] = sim['a1crossL']
-        a2crossL[s] = sim['a2crossL']
-
-        theta_a12[s] = sim['theta_a12']
-
-        SeffdotL[s] = sim['SeffdotL']
-        SeffcrossL[s] = sim['SeffcrossL']
-
-        SdotL[s] = sim['theta_SdotL']
-        theta_SdotL[s] = sim['theta_SdotL']
-
         for n in xrange(config.nsampls):
 
             chirp_masses[s,n] = masses[s,n] * sim['eta']**(3./5) 
@@ -141,8 +150,24 @@ for result_file in resutls_files:
     std_chirp_masses    = np.std(chirp_masses, axis=1)
 
     matchsort = np.argsort(median_matches)
+
+    #
+    # Store the Best-fit parameters
+    #
+    best_match[d] = median_matches[matchsort][-1]
+    best_mass[d] = median_masses[matchsort][-1]
+    best_chirp_mass[d] = median_chirp_masses[matchsort][-1]
+    best_a1dotL[d] = a1dotL[matchsort][-1]
+    best_a2dotL[d] = a1dotL[matchsort][-1]
+    best_mass_ratio[d] = mass_ratios[matchsort][-1]
+
+    sigma_best_match[d] = std_matches[matchsort][-1]
+    sigma_best_mass[d] = std_masses[matchsort][-1]
+    sigma_best_chirp_mass[d] = std_chirp_masses[matchsort][-1]
+
+
     print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    print "Summary for %s"%args[0]
+    print "Summary for %s"%results_file
     print ""
     print "   * Highest (median) Match: %f +/- %f"%(median_matches[matchsort][-1],
             std_matches[matchsort][-1])
@@ -158,12 +183,6 @@ for result_file in resutls_files:
         np.around(simulations_goodmatch[matchsort][-1]['a2'],
             decimals=nrbu.__metadata_ndecimals__))
     print "   * a1.L: %f, a2.L=%f"%(a1dotL[matchsort][-1], a2dotL[matchsort][-1])
-    print "   * a1 x L: %f, a2 x L=%f"%(a1crossL[matchsort][-1],
-            a2crossL[matchsort][-1])
-    print "   * theta12=%f"%(theta_a12[matchsort][-1])
-    print "   * S_eff.L=%f"%(SeffdotL[matchsort][-1])
-    print "   * |S_eff x L|=%f"%(SeffcrossL[matchsort][-1])
-    print "   * S.L=%f"%(SdotL[matchsort][-1])
 
     f=open("%s_summary.txt"%user_tag, 'w')
     f.writelines("* Highest (median) Match: %f +/- %f\n"%(median_matches[matchsort][-1],
@@ -182,13 +201,16 @@ for result_file in resutls_files:
             decimals=nrbu.__metadata_ndecimals__)))
     f.writelines("* a1.L: %f, a2.L=%f\n"%(a1dotL[matchsort][-1],
         a2dotL[matchsort][-1]))
-    f.writelines("* a1 x L: %f, a2 x L=%f\n"%(a1crossL[matchsort][-1],
-            a2crossL[matchsort][-1]))
-    f.writelines("* theta12=%f\n"%(theta_a12[matchsort][-1]))
-    f.writelines("* S_eff.L=%f\n"%(SeffdotL[matchsort][-1]))
-    f.writelines("* |S_eff x L|=%f\n"%(SeffcrossL[matchsort][-1]))
-    f.writelines("* S.L=%f\n"%(SdotL[matchsort][-1]))
     f.close()
 
+#
+# Save plot data so we can make a combined result figure
+#
+np.savez(tag, best_match=best_match, sigma_best_match=sigma_best_match,
+        injected_mass=injected_mass, sigma_best_mass=sigma_best_mass,
+        injected_chirp_mass=injected_chirp_mass,
+        best_mass=best_mass, sigma_best_chirp_mass=sigma_best_chirp_mass,
+        best_chirp_mass=best_chirp_mass, best_mass_ratio=best_mass_ratio,
+        best_a1dotL=best_a1dotL, best_a2dotL=best_a2dotL)
 
-if opts.no_plot: sys.exit(0)
+

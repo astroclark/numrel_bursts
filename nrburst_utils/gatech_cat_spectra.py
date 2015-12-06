@@ -122,8 +122,9 @@ sim_number = int(sys.argv[1])
 #
 # --- Catalogue Definition
 #
-bounds = dict()
-bounds['Mchirpmin30Hz'] = [-np.inf, 27]
+bounds = None
+#bounds = dict()
+#bounds['Mchirpmin30Hz'] = [-np.inf, 27]
 #bounds['a1'] = [-0.01, 0.01]
 #bounds['a2'] = [-0.01, 0.01]
 #bounds['q'] = [0.99, 1.01]
@@ -147,12 +148,12 @@ datalen = 16
 # --- Noise Spectrum
 #
 asd_file = \
-        "/home/jclark308/GW150914_data/noise_curves/early_aligo.dat"
+        "/home/jclark/GW150914_data/noise_curves/early_aligo.dat"
 
 #
 # --- Catalog
 #
-catalog='/home/jclark308/GW150914_data/nr_catalog/gatech_hdf5'
+catalog='/home/jclark/GW150914_data/nr_catalog/gatech_hdf5'
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Generate The Catalogue
