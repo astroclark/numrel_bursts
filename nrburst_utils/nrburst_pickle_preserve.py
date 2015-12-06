@@ -51,13 +51,13 @@ for f, file in enumerate(pickle_files):
             current_simulations, __author__, __version__, __date__ = \
             pickle.load(open(file,'r'))
 
-    matches[f,:] = current_matches[0]
-    masses[f,:]  = current_masses[0]
-    inclinations[f,:] = current_inclinations[0]
+    matches[f,:] = current_matches[0][0]
+    masses[f,:]  = current_masses[0][0]
+    inclinations[f,:] = current_inclinations[0][0]
 
     simulations.simulations.append(current_simulations.simulations[0])
 
-filename=config.detector_name+'_'+user_tag+'_'+config.algorithm+'.pickle'
+filename=user_tag+'_'+config.algorithm+'.pickle'
 
 pickle.dump([matches, masses, inclinations, config, simulations,
         __author__, __version__, __date__], open(filename, "wb"))
