@@ -314,7 +314,7 @@ def single_ifo_match(params, nrfile=None, skyloc=None, polarization=None,
         try:
             hp, hc = get_wf_pols(nrfile, mtotal, inclination=inclination, delta_t=delta_t)
         except:
-            return np.nan
+            return 0.0, 0.0, 0.0
 
         if skyloc is None and polarization is None:
             tmplt = hp
