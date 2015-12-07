@@ -261,6 +261,9 @@ if opts.user_tag is None:
 # Manipulation and derived FOMs
 #
 
+for m in matches:
+    m[np.isnan(m)]=0.0
+
 # Remove NR waveforms in which the mean match was less than some threshold
 mean_matches = np.mean(matches, axis=1)
 
@@ -271,6 +274,7 @@ masses = masses[nonzero_match]
 # XXX: bit hacky..
 simulations_goodmatch = np.array(simulations.simulations)[nonzero_match]
 nsimulations_goodmatch = len(simulations_goodmatch)
+
 
 # Continue
 mean_matches = np.mean(matches, axis=1)

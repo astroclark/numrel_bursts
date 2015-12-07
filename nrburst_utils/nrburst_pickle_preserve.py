@@ -36,7 +36,7 @@ current_matches, current_masses, current_inclinations, config, \
 
 if config.algorithm=='BW':
 
-    nSims = len(simulations.simulations)
+    nSims = len(pickle_files)
     nsampls = config.nsampls
 
     # --- Preallocate
