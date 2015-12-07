@@ -410,6 +410,8 @@ def parser():
     parser.add_option("-a", "--algorithm", type=str, default=None)
     parser.add_option("-s", "--simulation-number", type=str, default="all")
     parser.add_option("-w", "--hdf5file", type=str, default=None)
+    parser.add_option("--min-sample", type=int, default=0)
+    parser.add_option("--max-sample", type=int, default=None)
 
     (opts,args) = parser.parse_args()
 
@@ -471,6 +473,8 @@ class configuration:
             self.nsampls=configparser.getint('parameters', 'nsampls')
         except:
             self.nsampls='all'
+
+
         self.min_chirp_mass=configparser.getfloat('parameters', 'min-chirp-mass')
         self.max_chirp_mass=configparser.getfloat('parameters', 'max-chirp-mass')
 
