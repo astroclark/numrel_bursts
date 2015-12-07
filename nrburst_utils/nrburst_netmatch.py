@@ -184,9 +184,9 @@ l1_asd = np.interp(freq_axis, l1_asd_data[:,0], l1_asd_data[:,1])
 # total mass and orientation
 
 # Preallocate
-matches = np.zeros(shape=(3, simulations.nsimulations, config.nsampls))
-masses  = np.zeros(shape=(3, simulations.nsimulations, config.nsampls))
-inclinations  = np.zeros(shape=(3, simulations.nsimulations, config.nsampls))
+matches = np.zeros(shape=(simulations.nsimulations, config.nsampls))
+masses  = np.zeros(shape=(simulations.nsimulations, config.nsampls))
+inclinations  = np.zeros(shape=(simulations.nsimulations, config.nsampls))
 
 
 # Loop over waves in NR catalog
@@ -257,7 +257,7 @@ for w in xrange(simulations.nsimulations):
 #
 #       print "INJECTING:"
 #       print mass, inc, rec_polarization[s]
-#
+ 
 
         # END XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
@@ -285,62 +285,6 @@ for w in xrange(simulations.nsimulations):
 
         then = timeit.time.time()
 
-#       # ################### H1 ################ #
-#       print "--- Analysing H1 ---"
-#       h1_result = scipy.optimize.fmin(nrbu.single_ifo_mismatch,
-#               x0=init_guess,
-#               args=(
-#                   simulations.simulations[w]['wavefile'],
-#                   None, None,
-#                   'H1',
-#                   (min_mass, max_mass),
-#                   h1_sampled_waveform, h1_asd, config.delta_t
-#                   ), xtol=1e-3, ftol=1e-3, maxfun=10000,
-#               full_output=True, retall=True, disp=True)
-#
-#       now = timeit.time.time()
-#       print >> sys.stdout,  "...mass optimisation took %.3f sec..."%(now-then)
-#
-#       matches[1,w,s] = 1-h1_result[1]
-#       masses[1,w,s]  = h1_result[0][0]
-#       inclinations[1,w,s]  = h1_result[0][1]
-#
-#       chirp_mass = masses[1,w,s]*simulations.simulations[w]['eta']**(3./5.)
-#
-#       print >> sys.stdout, ""
-#       print >> sys.stdout, "Fit-factor: %.2f"%(matches[1,w,s])
-#       print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
-#               chirp_mass, masses[1,w,s], inclinations[1,w, s])
-#       print >> sys.stdout, ""
-#
-#       # ################### L1 ################ #
-#       print "--- Analysing L1 ---"
-#       l1_result = scipy.optimize.fmin(nrbu.single_ifo_mismatch,
-#               x0=init_guess,
-#               args=(
-#                   simulations.simulations[w]['wavefile'],
-#                   None, None,
-#                   'L1',
-#                   (min_mass, max_mass),
-#                   l1_sampled_waveform, l1_asd, config.delta_t
-#                   ), xtol=1e-3, ftol=1e-3, maxfun=10000,
-#               full_output=True, retall=True, disp=True)
-#
-#       now = timeit.time.time()
-#       print >> sys.stdout,  "...mass optimisation took %.3f sec..."%(now-then)
-#
-#       matches[2,w,s] = 1-l1_result[1]
-#       masses[2,w,s]  = l1_result[0][0]
-#       inclinations[2,w,s]  = l1_result[0][1]
-#
-#       chirp_mass = masses[2,w,s]*simulations.simulations[w]['eta']**(3./5.)
-#
-#       print >> sys.stdout, ""
-#       print >> sys.stdout, "Fit-factor: %.2f"%(matches[2,w,s])
-#       print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
-#               chirp_mass, masses[2,w,s], inclinations[2,w,s])
-#       print >> sys.stdout, ""
-#
 
         # ################### HL ################ #
 
@@ -360,16 +304,16 @@ for w in xrange(simulations.nsimulations):
         now = timeit.time.time()
         print >> sys.stdout,  "...mass optimisation took %.3f sec..."%(now-then)
 
-        matches[0,w,s] = 1-hl_result[1]
-        masses[0,w,s]  = hl_result[0][0]
-        inclinations[0,w,s]  = hl_result[0][1]
+        matches[w,s] = 1-hl_result[1]
+        masses[w,s]  = hl_result[0][0]
+        inclinations[w,s]  = hl_result[0][1]
 
-        chirp_mass = masses[0,w,s]*simulations.simulations[w]['eta']**(3./5.)
+        chirp_mass = masses[w,s]*simulations.simulations[w]['eta']**(3./5.)
 
         print >> sys.stdout, ""
-        print >> sys.stdout, "Fit-factor: %.2f"%(matches[0,w,s])
+        print >> sys.stdout, "Fit-factor: %.2f"%(matches[w,s])
         print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
-                chirp_mass, masses[0,w,s], inclinations[0,w,s])
+                chirp_mass, masses[w,s], inclinations[w,s])
         print >> sys.stdout, ""
 
         # START XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -380,10 +324,10 @@ for w in xrange(simulations.nsimulations):
 #
 #       # Generate the polarisations which correspond to the best-fit parameters
 #       h1_tmplt, _ = nrbu.get_wf_pols(simulations.simulations[w]['wavefile'],
-#               masses[1,w,s], inclination=inclinations[1,w,s],
+#               masses[w,s], inclination=inclinations[w,s],
 #               delta_t=config.delta_t)
 #       l1_tmplt, _ = nrbu.get_wf_pols(simulations.simulations[w]['wavefile'],
-#               masses[2,w,s], inclination=inclinations[2,w,s],
+#               masses[w,s], inclination=inclinations[w,s],
 #               delta_t=config.delta_t)
 #
 #       # Project to detector
@@ -411,7 +355,7 @@ for w in xrange(simulations.nsimulations):
 #       pl.plot(h1_sample.sample_times - h1_sample.sample_times[np.argmax(h1_sample)],
 #               h1_sample, label='H1 data')
 #       pl.legend()
-#       pl.title('%f'%matches[1,w,s])
+#       pl.title('%f'%matches[w,s])
 #       pl.xlim(-0.15,0.1)
 #       pl.show()
 #
@@ -436,7 +380,7 @@ for w in xrange(simulations.nsimulations):
 #       pl.plot(l1_sample.sample_times - l1_sample.sample_times[np.argmax(l1_sample)],
 #               l1_sample, label='L1 data')
 #       pl.legend()
-#       pl.title('%f'%matches[1,w,s])
+#       pl.title('%f'%matches[w,s])
 #       pl.xlim(-0.15,0.1)
 #       pl.show()
 #
@@ -444,36 +388,17 @@ for w in xrange(simulations.nsimulations):
         # END XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 
-    hl_bestidx=np.argmax(matches[0, w, :])
-    h_bestidx=np.argmax(matches[1, w, :])
-    l_bestidx=np.argmax(matches[2, w, :])
+    hl_bestidx=np.argmax(matches[w, :])
 
     print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
     print >> sys.stdout, "HL Best Match:"
 
-    chirp_mass = masses[0,w,hl_bestidx]*simulations.simulations[w]['eta']**(3./5.)
+    chirp_mass = masses[w,hl_bestidx]*simulations.simulations[w]['eta']**(3./5.)
 
     print >> sys.stdout, "Fit-factor: %.2f"%(matches[0,w,hl_bestidx])
     print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
-            chirp_mass, masses[0,w,hl_bestidx], inclinations[0,w,hl_bestidx])
+            chirp_mass, masses[w,hl_bestidx], inclinations[w,hl_bestidx])
 
-    print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    print >> sys.stdout, "H1 Best Match:"
-
-    chirp_mass = masses[1,w,h_bestidx]*simulations.simulations[w]['eta']**(3./5.)
-
-    print >> sys.stdout, "Fit-factor: %.2f"%(matches[1,w,h_bestidx])
-    print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
-            chirp_mass, masses[1,w,h_bestidx], inclinations[1,w,h_bestidx])
-
-    print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-    print >> sys.stdout, "L1 Best Match:"
-
-    chirp_mass = masses[2,w,l_bestidx]*simulations.simulations[w]['eta']**(3./5.)
-
-    print >> sys.stdout, "Fit-factor: %.2f"%(matches[2,w,l_bestidx])
-    print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
-            chirp_mass, masses[2,w,l_bestidx], inclinations[2,w,l_bestidx])
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Dump data
 

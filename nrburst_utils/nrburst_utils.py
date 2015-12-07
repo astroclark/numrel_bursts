@@ -335,28 +335,25 @@ def single_ifo_match(params, nrfile=None, skyloc=None, polarization=None,
         Tmplt = tmplt.to_frequencyseries()
         Tmplt.data /= asd
 
-        try:
-            match, _ = pycbc.filter.match(Tmplt, rec_data, psd=None,
-                    low_frequency_cutoff=f_min)
-        except ZeroDivisionError:
-            match = np.nan
+        htilde = pycbc.filter.make_frequency_series(Tmplt)
+        stilde = pycbc.filter.make_frequency_series(rec_data)
 
-        return match
+        snr, corr, snr_norm = pycbc.filter.matched_filter_core(htilde,
+                stilde, psd=None, low_frequency_cutoff=f_min)
+
+        maxsnr, max_id = snr.abs_max_loc()
+
+        tmplt_sigma = pycbc.filter.sigmasq(Tmplt, low_frequency_cutoff=f_min)
+        data_sigma = pycbc.filter.sigmasq(rec_data,
+                low_frequency_cutoff=f_min)
+
+
+        return maxsnr, tmplt_sigma, data_sigma 
 
     else:
         # Outside of mass range
 
-        return 0
-
-def single_ifo_mismatch(params, nrfile=None, skyloc=None, polarization=None,
-        detector_name="H1", mass_bounds=None, rec_data=None, asd=None,
-        delta_t=1./1024, f_min=30.0):
-
-    return 1-single_ifo_match(params, nrfile=nrfile, skyloc=skyloc,
-            polarization=polarization, detector_name=detector_name,
-            mass_bounds=mass_bounds, rec_data=rec_data, asd=asd,
-            delta_t=delta_t, f_min=f_min)
-
+        return 0.0, 0.0, 0.0
 
 def network_match(params, nrfile=None, skyloc=None, polarization=None,
         mass_bounds=None, h1_rec_data=None, h1_asd=None, l1_rec_data=None,
@@ -372,17 +369,24 @@ def network_match(params, nrfile=None, skyloc=None, polarization=None,
 
     """
 
-    h1_match = single_ifo_match(params, nrfile=nrfile, skyloc=skyloc,
-            polarization=polarization, detector_name="H1",
-            mass_bounds=mass_bounds, rec_data=h1_rec_data, asd=h1_asd,
-            delta_t=delta_t, f_min=f_min)
+    h1_max_snr, h1_tmplt_sigma, h1_data_sigma = single_ifo_match(params,
+            nrfile=nrfile, skyloc=skyloc, polarization=polarization,
+            detector_name="H1", mass_bounds=mass_bounds, rec_data=h1_rec_data,
+            asd=h1_asd, delta_t=delta_t, f_min=f_min)
 
-    l1_match = single_ifo_match(params, nrfile=nrfile, skyloc=skyloc,
-            polarization=polarization, detector_name="L1",
-            mass_bounds=mass_bounds, rec_data=l1_rec_data, asd=l1_asd,
-            delta_t=delta_t, f_min=f_min)
+    l1_max_snr, l1_tmplt_sigma, l1_data_sigma = single_ifo_match(params,
+            nrfile=nrfile, skyloc=skyloc, polarization=polarization,
+            detector_name="L1", mass_bounds=mass_bounds, rec_data=l1_rec_data,
+            asd=l1_asd, delta_t=delta_t, f_min=f_min)
 
-    return 0.5*(h1_match + l1_match)
+    network_match = h1_max_snr + l1_max_snr
+    norm = np.sqrt( (h1_tmplt_sigma + l1_tmplt_sigma)\
+            *(h1_data_sigma + l1_data_sigma) )
+
+    if network_match==0.0:
+        return 0.0
+    else:
+        return network_match / norm
 
 def network_mismatch(params, nrfile=None, skyloc=None, polarization=None,
         mass_bounds=None, h1_rec_data=None, h1_asd=None, l1_rec_data=None,
