@@ -33,8 +33,9 @@ pl.rcParams.update({'legend.fontsize':16})
 
 raw_result=np.load('/home/jclark/GW150914_data/hwinj_dumps/HWINJ.npz')
 bw_result=np.load('/home/jclark/GW150914_data/nrburst_analysis/injection_waveforms_031215/BW.npz')
+cwb_result=np.load('/home/jclark/GW150914_data/nrburst_analysis/cwb_injection_waveforms_061215/CWB.npz')
 
-labels=['injection data', 'BayesWave']
+labels=['injection data', 'BayesWave', 'CWB']
 
 #
 # Fitting factor vs Total Mass
@@ -52,10 +53,14 @@ ax_mtot.errorbar(bw_result['best_match'],
         yerr=bw_result['sigma_best_mass'], xerr=bw_result['sigma_best_match'],
         linestyle='none', color='k', marker='o', label="BayesWave")
 
+ax_mtot.plot(cwb_result['best_match'],
+        cwb_result['injected_mass']-cwb_result['best_mass'],
+        linestyle='none', color='k', marker='s', label="CWB")
+
 ax_mtot.minorticks_on()
 ax_mtot.set_xlabel('Fitting Factor')
 ax_mtot.set_ylabel('Injected - Recovered Total Mass [M$_{\odot}$]')
-ax_mtot.legend()
+ax_mtot.legend(loc='upper left')
 f_mtot.tight_layout()
 
 #
@@ -74,11 +79,17 @@ ax_mchirp.errorbar(bw_result['best_match'],
         yerr=bw_result['sigma_best_chirp_mass'], xerr=bw_result['sigma_best_match'],
         linestyle='none', color='k', marker='o', label="BayesWave")
 
+
+ax_mchirp.plot(cwb_result['best_match'],
+        cwb_result['injected_chirp_mass']-cwb_result['best_chirp_mass'],
+        linestyle='none', color='k', marker='s', label="CWB")
+
 ax_mchirp.minorticks_on()
 ax_mchirp.set_xlabel('Fitting Factor')
 ax_mchirp.set_ylabel('Injected - Recovered Chirp Mass [M$_{\odot}$]')
-ax_mchirp.legend()
+ax_mchirp.legend(loc='center left')
 f_mchirp.tight_layout()
+
 
 pl.show()
 
