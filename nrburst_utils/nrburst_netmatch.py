@@ -73,11 +73,12 @@ if config.algorithm=='BW':
     rec_declination     = np.arcsin(rec_ext_params[:,3]) / lal.PI_180
     rec_polarization    = rec_ext_params[:,4] / lal.PI_180
 
+
     if config.nsampls != 'all':
 
         # Load sampled waveforms
         print 'reducing sample size'
-        idx = np.random.random_integers(low=0, high=len(h1_reconstruction_data)-1,
+        idx = np.random.random_integers(low=0, high=len(h1_reconstruction_data),
                 size=config.nsampls)
 
         h1_reconstruction_data = h1_reconstruction_data[idx]
@@ -85,9 +86,23 @@ if config.algorithm=='BW':
         rec_right_ascension = rec_right_ascension[idx]
         rec_declination     = rec_declination[idx]
         rec_polarization    = rec_polarization[idx]
+
+
+    elif opts.max_sample is not None:
+
+        print "selecting out samples %d:%d"%(opts.min_sample, opts.max_sample)
+        idx = range(opts.min_sample, opts.max_sample+1)
+
+        h1_reconstruction_data = h1_reconstruction_data[idx]
+        l1_reconstruction_data = l1_reconstruction_data[idx]
+        rec_right_ascension = rec_right_ascension[idx]
+        rec_declination     = rec_declination[idx]
+        rec_polarization    = rec_polarization[idx]
+
     else:
         print 'using ALL BW samples (%d)'%len(h1_reconstruction_data)
-        setattr(config, 'nsampls', len(h1_reconstruction_data))
+
+    setattr(config, 'nsampls', len(h1_reconstruction_data))
 
 
 elif config.algorithm=='CWB':
@@ -161,6 +176,10 @@ if getattr(opts, 'hdf5file') is not None:
 
 else:
     filename=opts.user_tag+'_'+config.algorithm+'.pickle'
+
+if opts.max_sample is not None:
+    filename=filename.replace('.pickle', '-minsamp_%d-maxsamp_%d.pickle'%(
+                opts.min_sample, opts.max_sample))
 
 # Useful time/freq samples
 time_axis = np.arange(config.datalen, config.delta_t)
@@ -395,7 +414,7 @@ for w in xrange(simulations.nsimulations):
 
     chirp_mass = masses[w,hl_bestidx]*simulations.simulations[w]['eta']**(3./5.)
 
-    print >> sys.stdout, "Fit-factor: %.2f"%(matches[0,w,hl_bestidx])
+    print >> sys.stdout, "Fit-factor: %.2f"%(matches[w,hl_bestidx])
     print >> sys.stdout, "Mchirp=%.2f,  Mtot=%.2f, inclination=%.2f"%(
             chirp_mass, masses[w,hl_bestidx], inclinations[w,hl_bestidx])
 
