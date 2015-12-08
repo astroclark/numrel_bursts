@@ -114,7 +114,8 @@ def double_double_scatter_plot(param1y, param2y, paramx, label1y='x',
         scat_indi = ax[0][0].scatter(paramx[0][p], param1y[0][p], c=matches[0][p], s=50,
                 alpha=1, zorder=matches[0][p])
     #scat_all.set_clim(min(matches),max(matches))
-    scat_all.set_clim(clims[0],clims[1])
+    #scat_all.set_clim(clims[0],clims[1])
+    scat_all.set_clim(0.5,0.9)
 
     ax[0][0].minorticks_on()
     ax[0][0].grid()
@@ -123,13 +124,14 @@ def double_double_scatter_plot(param1y, param2y, paramx, label1y='x',
     ax[0][0].set_xlim(-0.01,1.1)
     ax[0][0].set_title('CWB')
 
-    scat_all = ax[1][0].scatter(paramx[0][match_sort], param2y[0][match_sort],
+    cwb_scat_all = ax[1][0].scatter(paramx[0][match_sort], param2y[0][match_sort],
         c=matches[0][match_sort], s=50, alpha=1, cmap=cm)
     for p in match_sort:
         scat_indi = ax[1][0].scatter(paramx[0][p], param2y[0][p], c=matches[0][p], s=50,
                 alpha=1, label='Median', zorder=matches[0][p])
     #scat_all.set_clim(min(matches),max(matches))
-    scat_all.set_clim(clims[0],clims[1])
+    #cwb_scat_all.set_clim(clims[0],clims[1])
+    cwb_scat_all.set_clim(0.5,0.9)
 
     ax[1][0].minorticks_on()
     ax[1][0].grid()
@@ -147,7 +149,8 @@ def double_double_scatter_plot(param1y, param2y, paramx, label1y='x',
         scat_indi = ax[0][1].scatter(paramx[1][p], param1y[1][p], c=matches[1][p], s=50,
                 alpha=1, zorder=matches[1][p])
     #scat_all.set_clim(min(matches),max(matches))
-    scat_all.set_clim(clims[0],clims[1])
+    #scat_all.set_clim(clims[0],clims[1])
+    scat_all.set_clim(0.5,1)
 
     ax[0][1].minorticks_on()
     ax[0][1].grid()
@@ -156,12 +159,13 @@ def double_double_scatter_plot(param1y, param2y, paramx, label1y='x',
     #ax[0][1].set_ylim(-0.01,1.1)
     ax[0][1].set_title('BayesWave')
 
-    scat_all = ax[1][1].scatter(paramx[1][match_sort], param2y[1][match_sort],
+    bw_scat_all = ax[1][1].scatter(paramx[1][match_sort], param2y[1][match_sort],
         c=matches[1][match_sort], s=50, alpha=1, cmap=cm)
     for p in match_sort:
         scat_indi = ax[1][1].scatter(paramx[1][p], param2y[1][p], c=matches[1][p], s=50,
                 alpha=1, label='Median', zorder=matches[1][p])
-    scat_all.set_clim(clims[0],clims[1])
+    #bw_scat_all.set_clim(clims[0],clims[1])
+    bw_scat_all.set_clim(0.5,1)
 
     ax[1][1].minorticks_on()
     ax[1][1].grid()
@@ -172,10 +176,15 @@ def double_double_scatter_plot(param1y, param2y, paramx, label1y='x',
     f.tight_layout()
     pl.subplots_adjust(hspace=0, wspace=0, bottom=0.275)
 
-    cbar_ax = f.add_axes([0.15, 0.1, 0.8, 0.05])
-    colbar = f.colorbar(scat_all, orientation='horizontal', cax=cbar_ax) 
-    colbar.set_label('Fitting Factor')
+    cbar_ax = f.add_axes([0.155, 0.1, 0.35, 0.05])
+    colbar = f.colorbar(cwb_scat_all, orientation='horizontal', cax=cbar_ax,
+            ticks=np.arange(0.5, 1, 0.10)) 
+    colbar.set_label('max-L FF')
 
+    cbar_ax = f.add_axes([0.6, 0.1, 0.35, 0.05])
+    colbar = f.colorbar(bw_scat_all, orientation='horizontal', cax=cbar_ax,
+            ticks=np.arange(0.5, 1.1, 0.10)) 
+    colbar.set_label('median FF')
 
     return f, ax
 
