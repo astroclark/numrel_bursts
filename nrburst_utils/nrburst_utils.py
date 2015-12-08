@@ -45,6 +45,8 @@ from pycbc.waveform import utils as wfutils
 from pycbc import pnutils
 from pycbc.detector import Detector
 
+from matplotlib import pyplot as pl
+
 __author__ = "James Clark <james.clark@ligo.org>"
 #git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
 #__version__ = "git id %s" % git_version_id
@@ -86,6 +88,233 @@ def extract_wave(inwave, datalen=4.0, sample_rate = 4096):
             0.5*datalen*sample_rate+0.5*nsamp] = np.copy(extracted)
 
     return output
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#
+# Plotting Utils
+
+def double_double_scatter_plot(param1y, param2y, paramx, label1y='x',
+        label2y='y', labelx='X', matches=None, clims=(0.5, 0.95)):
+    """
+    Make a scatter plot of param1 against param2, coloured by match value
+    """
+
+    f, ax = pl.subplots(ncols=2, nrows=2, sharey=True, sharex=True)
+    cm = pl.cm.get_cmap('gnuplot')
+
+
+    # --- CWB Result
+    match_sort = np.argsort(matches[0])
+
+    # Here's a bunch of messing around to get the best matches plotted on top
+    scat_all = ax[0][0].scatter(paramx[0][match_sort], param1y[0][match_sort],
+        c=matches[0][match_sort], s=50, alpha=1, cmap=cm)
+
+    for p in match_sort:
+        scat_indi = ax[0][0].scatter(paramx[0][p], param1y[0][p], c=matches[0][p], s=50,
+                alpha=1, zorder=matches[0][p])
+    #scat_all.set_clim(min(matches),max(matches))
+    scat_all.set_clim(clims[0],clims[1])
+
+    ax[0][0].minorticks_on()
+    ax[0][0].grid()
+    #ax[0][0].set_xlabel(labelx)
+    ax[0][0].set_ylabel(label1y)
+    ax[0][0].set_xlim(-0.01,1.1)
+    ax[0][0].set_title('CWB')
+
+    scat_all = ax[1][0].scatter(paramx[0][match_sort], param2y[0][match_sort],
+        c=matches[0][match_sort], s=50, alpha=1, cmap=cm)
+    for p in match_sort:
+        scat_indi = ax[1][0].scatter(paramx[0][p], param2y[0][p], c=matches[0][p], s=50,
+                alpha=1, label='Median', zorder=matches[0][p])
+    #scat_all.set_clim(min(matches),max(matches))
+    scat_all.set_clim(clims[0],clims[1])
+
+    ax[1][0].minorticks_on()
+    ax[1][0].grid()
+    ax[1][0].set_xlim(-0.01,1.1)
+    ax[1][0].set_xlabel(labelx)
+    ax[1][0].set_ylabel(label2y)
+
+    # --- BW Result
+    match_sort = np.argsort(matches[1])
+
+    # Here's a bunch of messing around to get the best matches plotted on top
+    scat_all = ax[0][1].scatter(paramx[1][match_sort], param1y[1][match_sort],
+        c=matches[1][match_sort], s=50, alpha=1, cmap=cm)
+    for p in match_sort:
+        scat_indi = ax[0][1].scatter(paramx[1][p], param1y[1][p], c=matches[1][p], s=50,
+                alpha=1, zorder=matches[1][p])
+    #scat_all.set_clim(min(matches),max(matches))
+    scat_all.set_clim(clims[0],clims[1])
+
+    ax[0][1].minorticks_on()
+    ax[0][1].grid()
+    ax[0][1].set_xlabel(labelx)
+    #ax[0][1].set_ylabel(labely)
+    #ax[0][1].set_ylim(-0.01,1.1)
+    ax[0][1].set_title('BayesWave')
+
+    scat_all = ax[1][1].scatter(paramx[1][match_sort], param2y[1][match_sort],
+        c=matches[1][match_sort], s=50, alpha=1, cmap=cm)
+    for p in match_sort:
+        scat_indi = ax[1][1].scatter(paramx[1][p], param2y[1][p], c=matches[1][p], s=50,
+                alpha=1, label='Median', zorder=matches[1][p])
+    scat_all.set_clim(clims[0],clims[1])
+
+    ax[1][1].minorticks_on()
+    ax[1][1].grid()
+    ax[1][1].set_xlabel(labelx)
+    ax[1][1].set_xlim(-0.01,1.1)
+
+
+    f.tight_layout()
+    pl.subplots_adjust(hspace=0, wspace=0, bottom=0.275)
+
+    cbar_ax = f.add_axes([0.15, 0.1, 0.8, 0.05])
+    colbar = f.colorbar(scat_all, orientation='horizontal', cax=cbar_ax) 
+    colbar.set_label('Fitting Factor')
+
+
+    return f, ax
+
+def double_scatter_plot(config, param1x, param2x, paramy, label1x='x',
+        label2x='y', labely='Y', matches=None, clims=(0.5, 0.95)):
+    """
+    Make a scatter plot of param1 against param2, coloured by match value
+    """
+
+    match_sort = np.argsort(matches)
+
+    f, ax = pl.subplots(ncols=2, sharey=True)
+
+    cm = pl.cm.get_cmap('gnuplot')
+
+    # Here's a bunch of messing around to get the best matches plotted on top
+    scat_all = ax[0].scatter(param1x[match_sort], paramy[match_sort],
+        c=matches[match_sort], s=50, alpha=1, cmap=cm)
+    for p in match_sort:
+        scat_indi = ax[0].scatter(param1x[p], paramy[p], c=matches[p], s=50,
+                alpha=1, zorder=matches[p])
+    #scat_all.set_clim(min(matches),max(matches))
+    scat_all.set_clim(clims[0],clims[1])
+
+
+    ax[0].minorticks_on()
+    ax[0].grid()
+    ax[0].set_xlabel(label1x)
+    ax[0].set_ylabel(labely)
+
+    # --- 2nd axis
+    scat_all = ax[1].scatter(param2x[match_sort], paramy[match_sort],
+        c=matches[match_sort], s=50, alpha=1, cmap=cm)
+    for p in match_sort:
+        scat_indi = ax[1].scatter(param2x[p], paramy[p], c=matches[p], s=50,
+                alpha=1, label='Median', zorder=matches[p])
+    #scat_all.set_clim(min(matches),max(matches))
+    scat_all.set_clim(clims[0],clims[1])
+
+    ax[1].minorticks_on()
+    ax[1].grid()
+    ax[1].set_xlabel(label2x)
+
+
+    cbar_ax = f.add_axes([0.13, 0.125, 0.8, 0.05])
+    colbar = f.colorbar(scat_all, orientation='horizontal', cax=cbar_ax) 
+    if config.algorithm=='BW':
+        colbar.set_label('Median Fit Factor')
+    else:
+        colbar.set_label('Fit Factor')
+
+
+    return f, ax
+
+def make_labels(simulations):
+    """
+    Return a list of strings with suitable labels for e.g., box plots
+    """
+
+    labels=[]
+    for s,sim in enumerate(simulations):
+
+        SdotL = sim['SdotL']
+        theta_SdotL = sim['theta_SdotL']
+        theta_a12 = sim['theta_a12']
+
+        labelstr = \
+                r"$q=%.2f$, $a_1=%.2f$, $a_2=%.2f$, $\theta_{1,2}=%.2f$, $\theta_{\mathrm{\hat{S},\hat{L}}}=%.2f$"%(
+                        sim['q'], sim['a1'], sim['a2'], theta_a12, theta_SdotL)
+        labels.append(labelstr)
+
+    return labels
+
+
+def matchboxes(matches, simulations, Nwaves):
+    """
+    Build a (hideous) box plot to show individual waveform match results from
+    BayesWave.  Since we're optimising over mass, this is fitting-factor.
+    """
+
+    # Find the sorting to present highest matches first.  Sort on median of the
+    # match distribution
+    median_matches = np.median(matches, axis=1)
+    match_sort = np.argsort(median_matches)
+
+    # --- Match vs Waveform boxes
+    f, ax = pl.subplots(figsize=(12,16))
+    match_box = ax.boxplot(matches[match_sort].T, whis='range', showcaps=True,
+            showmeans=True, showfliers=False,
+            vert=False)
+    ax.set_xlabel('Fitting Factor')
+    ax.set_ylabel('Waveform Parameters')
+    ax.grid(linestyle='-', color='grey')
+    ax.minorticks_on()
+
+    ax.set_ylim(len(median_matches)-(Nwaves+0.5), len(median_matches)+0.5)
+
+    ax.set_xlim(0.8,1.0)
+
+    ylabels=make_labels(np.array(simulations)[match_sort])
+    ax.set_yticklabels(ylabels)#, rotation=90)
+
+    f.tight_layout()
+
+    return f, ax
+
+def matchpoints(matches, simulations, Nwaves):
+    """
+    Build a plot to show individual waveform match results from
+    CWB.  Since we're optimising over mass, this is fitting-factor.
+    """
+
+    # Find the sorting to present highest matches first.  Sort on median of the
+    # match distribution
+    matches = np.concatenate(matches)
+    match_sort = np.argsort(matches)
+
+    # --- Match vs Waveform boxes
+    f, ax = pl.subplots(figsize=(12,8))
+
+    yvals = range(len(matches))[::-1]
+    match_plot = ax.plot(matches[match_sort].T, xrange(len(matches)),
+            marker='s', color='k', linestyle='None')
+
+    ax.set_xlabel('Fitting Factor')
+    ax.set_ylabel('Waveform Parameters')
+    ax.grid(linestyle='-', color='grey')
+    ax.minorticks_on()
+
+    ax.set_yticks(xrange(len(matches)))
+    ax.set_ylim(len(matches)-(Nwaves+0.5), len(matches)+0.5)
+    ax.set_xlim(0.85,0.95)
+
+    ylabels=make_labels(np.array(simulations)[match_sort])
+    ax.set_yticklabels(ylabels)#, rotation=90)
+
+    f.tight_layout()
+
+    return f, ax
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Derived physical quantities
