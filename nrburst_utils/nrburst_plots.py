@@ -250,5 +250,45 @@ f.tight_layout()
 f.savefig("%s_FF_ranking.eps"%user_tag)
 f.savefig("%s_FF_ranking.png"%user_tag)
 
-#
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Waveform and data plots
+best_simulation = simulations_goodmatch[matchsort][-1]
+best_mass = median_masses[matchsort][-1]
+std_mass = std_masses[matchsort][-1]
+best_inclination = np.median(inclinations[matchsort][-1])
+
+# Generate this waveform with this mass and inclianti
+
+hplus, _ = \
+        nrbu.get_wf_pols(best_simulation['wavefile'],
+        best_mass, inclination=best_inclination, delta_t=config.delta_t)
+
+# Useful time/freq samples
+time_axis = np.arange(0, config.datalen, config.delta_t)
+hplus.resize(len(time_axis))
+freq_axis = np.arange(0.5*config.datalen/config.delta_t+1./config.datalen) * 1./config.datalen
+
+# Interpolate the ASD to the waveform frequencies (this is convenient so that we
+# end up with a PSD which overs all frequencies for use in the match calculation
+# later - In practice, this will really just pad out the spectrum at low
+# frequencies)
+h1_asd_data = np.loadtxt(config.h1_spectral_estimate)
+l1_asd_data = np.loadtxt(config.l1_spectral_estimate)
+
+h1_asd = np.exp(np.interp(np.log(freq_axis), np.log(h1_asd_data[:,0]),
+    np.log(h1_asd_data[:,1])))
+l1_asd = np.exp(np.interp(np.log(freq_axis), np.log(l1_asd_data[:,0]),
+    np.log(l1_asd_data[:,1])))
+
+# Whiten
+h1tilde = hplus.to_frequencyseries()
+h1tilde.data /= h1_asd
+h1_white = h1tilde.to_timeseries()
+
+l1tilde = hplus.to_frequencyseries()
+l1tilde.data /= l1_asd
+l1_white = l1tilde.to_timeseries()
+
+
+
 

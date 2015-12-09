@@ -189,8 +189,11 @@ freq_axis = np.arange(0.5*config.datalen/config.delta_t+1./config.datalen) * 1./
 # end up with a PSD which overs all frequencies for use in the match calculation
 # later - In practice, this will really just pad out the spectrum at low
 # frequencies)
-h1_asd = np.interp(freq_axis, h1_asd_data[:,0], h1_asd_data[:,1])
-l1_asd = np.interp(freq_axis, l1_asd_data[:,0], l1_asd_data[:,1])
+
+h1_asd = np.exp(np.interp(np.log(freq_axis), np.log(h1_asd_data[:,0]),
+    np.log(h1_asd_data[:,1])))
+l1_asd = np.exp(np.interp(np.log(freq_axis), np.log(l1_asd_data[:,0]),
+    np.log(l1_asd_data[:,1])))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Parameter Estimation
