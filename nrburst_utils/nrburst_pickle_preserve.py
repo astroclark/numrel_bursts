@@ -84,7 +84,9 @@ if config.algorithm=='BW':
             endidx = startidx + len(current_matches[0])
 
         simulations.simulations.append(current_simulations.simulations[0])
+
 else:
+
     print "WHY DO YOU NEED TO DO THIS STEP FOR NON-BW RESULTS??"
     sys.exit()
     matches = current_matches[0]
