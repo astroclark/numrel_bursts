@@ -171,6 +171,13 @@ if int(sys.argv[1])==5:
     errors_file = None
     savename='q8_LL_D9_a0.6_th1_45_th2_225'
 
+#    6) q15_LL_D9_a0.6_th1_45_th2_225
+if int(sys.argv[1])==6:
+    bounds['q'] = [14.9, 15.1]
+    errors_file = None
+    savename='GATECH1184'
+
+
 # *************************************
 
 inc = 0 
