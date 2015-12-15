@@ -62,22 +62,16 @@ rec_ext_params = np.loadtxt(config.extrinsic_params)
 # compute matches (useful for speed / development work)
 if config.algorithm=='BW':
 
-    rec_right_ascension = rec_ext_params[:,2] / lal.PI_180
-    rec_declination     = np.arcsin(rec_ext_params[:,3]) / lal.PI_180
-    rec_polarization    = rec_ext_params[:,4] / lal.PI_180
-
     if config.nsampls != 'all':
 
         # Load sampled waveforms
         print 'reducing sample size'
-        idx = np.random.random_integers(low=0, high=len(h1_reconstruction_data),
+        idx = np.random.random_integers(low=0,
+                high=len(h1_reconstruction_data)-1,
                 size=config.nsampls)
 
         h1_reconstruction_data = h1_reconstruction_data[idx]
         l1_reconstruction_data = l1_reconstruction_data[idx]
-        rec_right_ascension = rec_right_ascension[idx]
-        rec_declination     = rec_declination[idx]
-        rec_polarization    = rec_polarization[idx]
 
     elif opts.max_sample is not None:
 
@@ -86,9 +80,6 @@ if config.algorithm=='BW':
 
         h1_reconstruction_data = h1_reconstruction_data[idx]
         l1_reconstruction_data = l1_reconstruction_data[idx]
-        rec_right_ascension = rec_right_ascension[idx]
-        rec_declination     = rec_declination[idx]
-        rec_polarization    = rec_polarization[idx]
 
     else:
         print 'using ALL BW samples (%d)'%len(h1_reconstruction_data)
@@ -97,20 +88,6 @@ if config.algorithm=='BW':
 
 
 elif config.algorithm=='CWB':
-
-    sky_loc_geographic = lal.SkyPosition()
-    sky_loc_geographic.latitude = rec_ext_params[0]
-    sky_loc_geographic.longitude = rec_ext_params[1]
-    sky_loc_geographic.system=lal.COORDINATESYSTEM_GEOGRAPHIC
-
-    sky_loc_equatorial = lal.SkyPosition()
-    sky_loc_equatorial.system = lal.COORDINATESYSTEM_EQUATORIAL
-    lal.GeographicToEquatorial(sky_loc_equatorial, sky_loc_geographic,
-            lal.LIGOTimeGPS(1126259462))
-
-    rec_right_ascension = [sky_loc_equatorial.longitude]
-    rec_declination = [sky_loc_equatorial.latitude]
-    rec_polarization = [rec_ext_params[2]]
 
     h1_reconstruction_data = [nrbu.extract_wave(h1_reconstruction_data,
         config.datalen, config.sample_rate)]
@@ -129,29 +106,23 @@ freq_axis = np.arange(0.5*config.datalen/config.delta_t+1./config.datalen) * 1./
 # end up with a PSD which overs all frequencies for use in the match calculation
 # later - In practice, this will really just pad out the spectrum at low
 # frequencies)
-
 h1_asd = np.exp(np.interp(np.log(freq_axis), np.log(h1_asd_data[:,0]),
     np.log(h1_asd_data[:,1])))
 l1_asd = np.exp(np.interp(np.log(freq_axis), np.log(l1_asd_data[:,0]),
     np.log(l1_asd_data[:,1])))
 
+
+# Load the Software Injection
+h1_sw_injection=np.loadtxt(cp.get('paths', 'h1_injection'))
+l1_sw_injection=np.loadtxt(cp.get('paths', 'l1_injection'))
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Parameter Estimation
 #
 
-#
-# --- Compute Fitting-Factor for each NR waveform
-#
-# Fitting factor: normalised inner product, maximised over time, phase-offset,
-# total mass and orientation
 
 # Preallocate
-matches = np.zeros(config.nsampls))
-
-
-# Load the Software Injection
-
-
+matches = np.zeros(config.nsampls)
 
 for s, (h1_sampled_waveform, l1_sampled_waveform) in \
         enumerate(zip(h1_reconstruction_data, l1_reconstruction_data)):
@@ -161,28 +132,18 @@ for s, (h1_sampled_waveform, l1_sampled_waveform) in \
     print >> sys.stdout, "Evaluating sample waveform %d of %d"%(s,
             len(h1_reconstruction_data) )
 
-
     then = timeit.time.time()
-
 
     # ################### HL ################ #
 
     print "--- Analysing HL Network ---"
 
-    hl_result = scipy.optimize.fmin(nrbu.network_sw_mismatch,
-            x0=init_guess,
-            args=(
-                h1_sw_injection, l1_sw_injection,
-                h1_sampled_waveform, h1_asd,
-                l1_sampled_waveform, l1_asd, 
-                config.delta_t
-                ), xtol=1e-3, ftol=1e-3, maxfun=10000,
-            full_output=True, retall=True, disp=True)
-
     now = timeit.time.time()
     print >> sys.stdout,  "...mass optimisation took %.3f sec..."%(now-then)
 
-    matches[w,s] = 1-hl_result[1]
+    matches[s] = nrbu.network_sw_match(h1_sw_injection, l1_sw_injection,
+            h1_sampled_waveform, l1_sampled_waveform, delta_t=config.delta_t,
+            f_min=config.f_min)
 
     print >> sys.stdout, ""
     print >> sys.stdout, "Fit-factor: %.2f"%(matches[s])
@@ -194,16 +155,8 @@ hl_bestidx=np.argmax(matches)
 print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 print >> sys.stdout, "HL Best Match:"
 
-chirp_mass = masses[w,hl_bestidx]*simulations.simulations[w]['eta']**(3./5.)
+print >> sys.stdout, "Fit-factor: %.2f"%(matches[hl_bestidx])
 
-print >> sys.stdout, "Fit-factor: %.2f"%(matches[w,hl_bestidx])
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Dump data
-
-# Dump results and configuration to pickle
-#pickle.dump([matches, config, __author__, __version__, __date__], open(filename,
-#"wb"))
 
 
 

@@ -239,6 +239,41 @@ def double_scatter_plot(config, param1x, param2x, paramy, label1x='x',
 
     return f, ax
 
+def scatter_plot(config, paramx, paramy, labelx='x',
+        labely='y', matches=None, clims=(0.5, 0.95)):
+    """
+    Make a scatter plot of param1 against param2, coloured by match value
+    """
+
+    match_sort = np.argsort(matches)
+
+    f, ax = pl.subplots()
+
+    cm = pl.cm.get_cmap('gnuplot')
+
+    # Here's a bunch of messing around to get the best matches plotted on top
+    scat_all = ax.scatter(paramx[match_sort], paramy[match_sort],
+        c=matches[match_sort], s=50, alpha=1, cmap=cm)
+    for p in match_sort:
+        scat_indi = ax.scatter(paramx[p], paramy[p], c=matches[p], s=50,
+                alpha=1, zorder=matches[p])
+    #scat_all.set_clim(min(matches),max(matches))
+    scat_all.set_clim(clims[0],clims[1])
+
+    ax.minorticks_on()
+    ax.grid()
+    ax.set_xlabel(labelx)
+    ax.set_ylabel(labely)
+
+    #cbar_ax = f.add_axes([0.13, 0.1, 0.8, 0.05])
+    colbar = f.colorbar(scat_all, orientation='horizontal')#, cax=cbar_ax) 
+    if config.algorithm=='BW':
+        colbar.set_label('Median Fit Factor')
+    else:
+        colbar.set_label('Fit Factor')
+
+    return f, ax
+
 def make_labels(simulations):
     """
     Return a list of strings with suitable labels for e.g., box plots
@@ -528,6 +563,26 @@ def project_waveform(hp, hc, skyloc=(0.0, 0.0), polarization=0.0, detector_name=
 
     return signal
 
+def snr_calc(htilde, stilde, f_min=30.):
+    """
+    Compute the maximum un-normalised overlap and normalisations for a template
+    and data
+    """
+
+    htilde = pycbc.filter.make_frequency_series(htilde)
+    stilde = pycbc.filter.make_frequency_series(stilde)
+
+
+    snr, corr, snr_norm = pycbc.filter.matched_filter_core(htilde,
+            stilde, psd=None, low_frequency_cutoff=f_min)
+
+    maxsnr, max_id = snr.abs_max_loc()
+
+    h_sigmasq = pycbc.filter.sigmasq(htilde, low_frequency_cutoff=f_min)
+    d_sigmasq = pycbc.filter.sigmasq(htilde, low_frequency_cutoff=f_min)
+
+    return maxsnr, h_sigmasq, d_sigmasq
+
 def single_ifo_match(params, nrfile=None, skyloc=None, polarization=None,
         detector_name="H1", mass_bounds=None, rec_data=None, asd=None,
         delta_t=1./1024, f_min=30.0):
@@ -573,20 +628,10 @@ def single_ifo_match(params, nrfile=None, skyloc=None, polarization=None,
         Tmplt = tmplt.to_frequencyseries()
         Tmplt.data /= asd
 
-        htilde = pycbc.filter.make_frequency_series(Tmplt)
-        stilde = pycbc.filter.make_frequency_series(rec_data)
-
-        snr, corr, snr_norm = pycbc.filter.matched_filter_core(htilde,
-                stilde, psd=None, low_frequency_cutoff=f_min)
-
-        maxsnr, max_id = snr.abs_max_loc()
-
-        tmplt_sigma = pycbc.filter.sigmasq(Tmplt, low_frequency_cutoff=f_min)
-        data_sigma = pycbc.filter.sigmasq(rec_data,
-                low_frequency_cutoff=f_min)
+        maxsnr, tmplt_sigmasq, data_sigmasq = snr_calc(Tmplt, rec_data, f_min=30.)
 
 
-        return maxsnr, tmplt_sigma, data_sigma 
+        return maxsnr, tmplt_sigmasq, data_sigmasq 
 
     else:
         # Outside of mass range
@@ -607,19 +652,19 @@ def network_match(params, nrfile=None, skyloc=None, polarization=None,
 
     """
 
-    h1_max_snr, h1_tmplt_sigma, h1_data_sigma = single_ifo_match(params,
+    h1_max_snr, h1_tmplt_sigmasq, h1_data_sigmasq = single_ifo_match(params,
             nrfile=nrfile, skyloc=skyloc, polarization=polarization,
             detector_name="H1", mass_bounds=mass_bounds, rec_data=h1_rec_data,
             asd=h1_asd, delta_t=delta_t, f_min=f_min)
 
-    l1_max_snr, l1_tmplt_sigma, l1_data_sigma = single_ifo_match(params,
+    l1_max_snr, l1_tmplt_sigmasq, l1_data_sigmasq = single_ifo_match(params,
             nrfile=nrfile, skyloc=skyloc, polarization=polarization,
             detector_name="L1", mass_bounds=mass_bounds, rec_data=l1_rec_data,
             asd=l1_asd, delta_t=delta_t, f_min=f_min)
 
     network_match = h1_max_snr + l1_max_snr
-    norm = np.sqrt( (h1_tmplt_sigma + l1_tmplt_sigma)\
-            *(h1_data_sigma + l1_data_sigma) )
+    norm = np.sqrt( (h1_tmplt_sigmasq + l1_tmplt_sigmasq)\
+            *(h1_data_sigmasq + l1_data_sigmasq) )
 
     if network_match==0.0:
         return 0.0
@@ -634,6 +679,53 @@ def network_mismatch(params, nrfile=None, skyloc=None, polarization=None,
             polarization=polarization, mass_bounds=mass_bounds,
             h1_rec_data=h1_rec_data, h1_asd=h1_asd, l1_rec_data=l1_rec_data,
             l1_asd=l1_asd, delta_t=delta_t, f_min=f_min)
+
+def network_sw_match(h1_sw_injection, l1_sw_injection,  h1_reconstruction,
+        l1_reconstruction, delta_t=1./1024, f_min=30.0):
+    """
+    Compute the network match for reconstructions and injections, allowing
+    injections to be generated somewhere else
+    """
+
+    # --- H1 part
+
+    # Load in injection
+    h1_tmplt = pycbc.types.TimeSeries(h1_sw_injection, delta_t=delta_t)
+
+    # Put the reconstruction data in a TimeSeries
+    h1_rec_data = pycbc.types.TimeSeries(h1_reconstruction, delta_t=delta_t)
+
+    # Resize to the same length as the data
+    tlen = max(len(h1_tmplt), len(h1_rec_data))
+    h1_tmplt.resize(tlen)
+    h1_rec_data.resize(tlen)
+
+    h1_max_snr, h1_h_sigmasq, h1_d_sigmasq = snr_calc(h1_tmplt, h1_rec_data,
+            f_min=f_min)
+
+    # --- L1 part
+
+    # Load in injection
+    l1_tmplt = pycbc.types.TimeSeries(l1_sw_injection, delta_t=delta_t)
+
+    # Put the reconstruction data in a TimeSeries
+    l1_rec_data = pycbc.types.TimeSeries(l1_reconstruction, delta_t=delta_t)
+
+    # Resize to the same length as the data
+    tlen = max(len(l1_tmplt), len(l1_rec_data))
+    l1_tmplt.resize(tlen)
+    l1_rec_data.resize(tlen)
+
+    l1_max_snr, l1_h_sigmasq, l1_d_sigmasq = snr_calc(l1_tmplt, l1_rec_data,
+            f_min=f_min)
+
+    network_match = (h1_max_snr + l1_max_snr) /  np.sqrt( (h1_h_sigmasq +
+        l1_h_sigmasq) *(h1_d_sigmasq + l1_d_sigmasq) )
+
+#    print pycbc.filter.match(h1_tmplt, h1_rec_data, low_frequency_cutoff=f_min)
+#    print pycbc.filter.match(l1_tmplt, l1_rec_data, low_frequency_cutoff=f_min)
+
+    return network_match #/ len(h1_sw_injection) / delta_t
 
 
 def parser():
