@@ -78,7 +78,8 @@ if config.algorithm=='BW':
 
         # Load sampled waveforms
         print 'reducing sample size'
-        idx = np.random.random_integers(low=0, high=len(h1_reconstruction_data),
+        idx = np.random.random_integers(low=0,
+                high=len(h1_reconstruction_data)-1,
                 size=config.nsampls)
 
         h1_reconstruction_data = h1_reconstruction_data[idx]
