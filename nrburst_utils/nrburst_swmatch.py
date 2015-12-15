@@ -116,6 +116,12 @@ l1_asd = np.exp(np.interp(np.log(freq_axis), np.log(l1_asd_data[:,0]),
 h1_sw_injection=np.loadtxt(cp.get('paths', 'h1_injection'))
 l1_sw_injection=np.loadtxt(cp.get('paths', 'l1_injection'))
 
+# Reduce to specified datalen
+h1_sw_injection = nrbu.extract_wave(h1_sw_injection, config.datalen,
+        config.sample_rate)
+l1_sw_injection = nrbu.extract_wave(l1_sw_injection, config.datalen,
+        config.sample_rate)
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Parameter Estimation
 #

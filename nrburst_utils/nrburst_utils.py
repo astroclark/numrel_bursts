@@ -579,7 +579,7 @@ def snr_calc(htilde, stilde, f_min=30.):
     maxsnr, max_id = snr.abs_max_loc()
 
     h_sigmasq = pycbc.filter.sigmasq(htilde, low_frequency_cutoff=f_min)
-    d_sigmasq = pycbc.filter.sigmasq(htilde, low_frequency_cutoff=f_min)
+    d_sigmasq = pycbc.filter.sigmasq(stilde, low_frequency_cutoff=f_min)
 
     return maxsnr, h_sigmasq, d_sigmasq
 
@@ -695,11 +695,6 @@ def network_sw_match(h1_sw_injection, l1_sw_injection,  h1_reconstruction,
     # Put the reconstruction data in a TimeSeries
     h1_rec_data = pycbc.types.TimeSeries(h1_reconstruction, delta_t=delta_t)
 
-    # Resize to the same length as the data
-    tlen = max(len(h1_tmplt), len(h1_rec_data))
-    h1_tmplt.resize(tlen)
-    h1_rec_data.resize(tlen)
-
     h1_max_snr, h1_h_sigmasq, h1_d_sigmasq = snr_calc(h1_tmplt, h1_rec_data,
             f_min=f_min)
 
@@ -711,21 +706,13 @@ def network_sw_match(h1_sw_injection, l1_sw_injection,  h1_reconstruction,
     # Put the reconstruction data in a TimeSeries
     l1_rec_data = pycbc.types.TimeSeries(l1_reconstruction, delta_t=delta_t)
 
-    # Resize to the same length as the data
-    tlen = max(len(l1_tmplt), len(l1_rec_data))
-    l1_tmplt.resize(tlen)
-    l1_rec_data.resize(tlen)
-
     l1_max_snr, l1_h_sigmasq, l1_d_sigmasq = snr_calc(l1_tmplt, l1_rec_data,
             f_min=f_min)
 
-    network_match = (h1_max_snr + l1_max_snr) /  np.sqrt( (h1_h_sigmasq +
-        l1_h_sigmasq) *(h1_d_sigmasq + l1_d_sigmasq) )
+    network_match = (h1_max_snr + l1_max_snr) 
+    norm = np.sqrt( (h1_h_sigmasq+l1_h_sigmasq) * (h1_d_sigmasq+l1_d_sigmasq) )
 
-#    print pycbc.filter.match(h1_tmplt, h1_rec_data, low_frequency_cutoff=f_min)
-#    print pycbc.filter.match(l1_tmplt, l1_rec_data, low_frequency_cutoff=f_min)
-
-    return network_match #/ len(h1_sw_injection) / delta_t
+    return network_match  / norm
 
 
 def parser():
