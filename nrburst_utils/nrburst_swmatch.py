@@ -32,6 +32,14 @@ import timeit
 import lal
 import nrburst_utils as nrbu
 
+import pycbc.filter
+import pycbc.types
+
+import warnings
+
+warnings.filterwarnings('ignore')
+
+
 __author__ = "James Clark <james.clark@ligo.org>"
 #gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
 __date__ = 'today'#subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
@@ -50,7 +58,7 @@ config = nrbu.configuration(cp)
 #
 # --- Reconstruction data
 #
-print >> sys.stdout,  "Loading data"
+#print >> sys.stdout,  "Loading data"
 h1_reconstruction_data = np.loadtxt(config.h1_reconstruction)
 h1_asd_data = np.loadtxt(config.h1_spectral_estimate)
 l1_reconstruction_data = np.loadtxt(config.l1_reconstruction)
@@ -65,7 +73,7 @@ if config.algorithm=='BW':
     if config.nsampls != 'all':
 
         # Load sampled waveforms
-        print 'reducing sample size'
+        #print 'reducing sample size'
         idx = np.random.random_integers(low=0,
                 high=len(h1_reconstruction_data)-1,
                 size=config.nsampls)
@@ -75,14 +83,14 @@ if config.algorithm=='BW':
 
     elif opts.max_sample is not None:
 
-        print "selecting out samples %d:%d"%(opts.min_sample, opts.max_sample)
+        #print "selecting out samples %d:%d"%(opts.min_sample, opts.max_sample)
         idx = range(opts.min_sample, opts.max_sample+1)
 
         h1_reconstruction_data = h1_reconstruction_data[idx]
         l1_reconstruction_data = l1_reconstruction_data[idx]
 
-    else:
-        print 'using ALL BW samples (%d)'%len(h1_reconstruction_data)
+    #else:
+        #print 'using ALL BW samples (%d)'%len(h1_reconstruction_data)
 
     setattr(config, 'nsampls', len(h1_reconstruction_data))
 
@@ -128,41 +136,55 @@ l1_sw_injection = nrbu.extract_wave(l1_sw_injection, config.datalen,
 
 
 # Preallocate
-matches = np.zeros(config.nsampls)
+net_matches = np.zeros(config.nsampls)
+h1_matches = np.zeros(config.nsampls)
+l1_matches = np.zeros(config.nsampls)
 
 for s, (h1_sampled_waveform, l1_sampled_waveform) in \
         enumerate(zip(h1_reconstruction_data, l1_reconstruction_data)):
 
 
-    print >> sys.stdout, '-----------------------------'
-    print >> sys.stdout, "Evaluating sample waveform %d of %d"%(s,
-            len(h1_reconstruction_data) )
+#   print >> sys.stdout, '-----------------------------'
+#   print >> sys.stdout, "Evaluating sample waveform %d of %d"%(s,
+#            len(h1_reconstruction_data) )
 
     then = timeit.time.time()
 
     # ################### HL ################ #
 
-    print "--- Analysing HL Network ---"
+#    print "--- Analysing HL Network ---"
 
     now = timeit.time.time()
-    print >> sys.stdout,  "...mass optimisation took %.3f sec..."%(now-then)
+#    print >> sys.stdout,  "...mass optimisation took %.3f sec..."%(now-then)
 
-    matches[s] = nrbu.network_sw_match(h1_sw_injection, l1_sw_injection,
+    net_matches[s] = nrbu.network_sw_match(h1_sw_injection, l1_sw_injection,
             h1_sampled_waveform, l1_sampled_waveform, delta_t=config.delta_t,
             f_min=config.f_min)
 
-    print >> sys.stdout, ""
-    print >> sys.stdout, "Fit-factor: %.2f"%(matches[s])
-    print >> sys.stdout, ""
+    h1rec=pycbc.types.TimeSeries(h1_sampled_waveform, delta_t=config.delta_t)
+    l1rec=pycbc.types.TimeSeries(l1_sampled_waveform, delta_t=config.delta_t)
+    h1inj=pycbc.types.TimeSeries(h1_sw_injection, delta_t=config.delta_t)
+    l1inj=pycbc.types.TimeSeries(l1_sw_injection, delta_t=config.delta_t)
+
+    h1_matches[s], _ = pycbc.filter.match(h1rec, h1inj, low_frequency_cutoff=30.0)
+    l1_matches[s], _ = pycbc.filter.match(l1rec, l1inj, low_frequency_cutoff=30.0)
+
+#   print >> sys.stdout, ""
+#   print >> sys.stdout, "Fit-factor: %.2f"%(matches[s])
+#   print >> sys.stdout, ""
 
 
-hl_bestidx=np.argmax(matches)
+#   hl_bestidx=np.argmax(matches)
+#
+#   print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+#   print >> sys.stdout, "HL Best Match:"
+#
+#   print >> sys.stdout, "Fit-factor: %.2f"%(matches[hl_bestidx])
 
-print >> sys.stdout, "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-print >> sys.stdout, "HL Best Match:"
 
-print >> sys.stdout, "Fit-factor: %.2f"%(matches[hl_bestidx])
-
+print >> sys.stdout, "Median match: %.2f"%(np.median(net_matches))
+print >> sys.stdout, "Median H1 match: %.2f"%(np.median(h1_matches))
+print >> sys.stdout, "Median L1 match: %.2f"%(np.median(l1_matches))
 
 
 
