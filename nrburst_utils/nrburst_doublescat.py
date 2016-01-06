@@ -48,4 +48,18 @@ f, ax = nrbu.double_double_scatter_plot(
 
 pl.show()
 
+# Dump ascii data
+fout = open('nrburst_reconstructionVsNR.txt','w')
+fout.writelines("# a1dotL_CWB a1dotL_BW a2dotL_CWB a2dotL_BW mass_ratio_CWB mass_ratio_BW fittingfactor_CWB fittingfactor_BW\n")
+for f in range(len(cwb_results['a1dotL'])):
+    fout.writelines("{a1dotL_CWB} {a1dotL_BW} {a2dotL_CWB} {a2dotL_BW} {mass_ratio_CWB} {mass_ratio_BW} {fittingfactor_CWB} {fittingfactor_BW}\n".format(
+        a1dotL_CWB=cwb_results['a1dotL'][f], a1dotL_BW=bw_results['a1dotL'][f], 
+        a2dotL_CWB=cwb_results['a2dotL'][f], a2dotL_BW=bw_results['a2dotL'][f], 
+        mass_ratio_CWB=cwb_results['mass_ratios'][f],
+        mass_ratio_BW=bw_results['mass_ratios'][f],
+        fittingfactor_CWB=cwb_results['median_matches'][f],
+        fittingfactor_BW=bw_results['median_matches'][f]
+        ))
 
+fout.close()
+ 
