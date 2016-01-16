@@ -102,8 +102,13 @@ def get_params(file):
 h5files = glob.glob(sys.argv[1]+"*h5")
 
 param_list = []
-for h5file in h5files:
-    param_list.append(get_params(h5file))
+for h,h5file in enumerate(h5files):
+    print "Loading %s (%d of %d)"%(h5file, h+1, len(h5files))
+    try:
+        param_list.append(get_params(h5file))
+    except:
+        print "failed to read %s"%h5file
+        sys.exit()
 
 
 #
