@@ -26,7 +26,6 @@ from __future__ import division
 
 import os
 import sys 
-import subprocess
 import glob
 
 import numpy as np
@@ -36,15 +35,6 @@ import h5py
 from pycbc import pnutils
 
 import nrburst_utils as nrbu
-
-__author__ = "James Clark <james.clark@ligo.org>"
-gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
-__date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
-
-# Get the current git version
-git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
-        cwd=os.path.dirname(sys.argv[0])).strip()
-__version__ = "git id %s" % git_version_id
 
 
 def get_params(file):
@@ -112,8 +102,13 @@ def get_params(file):
 h5files = glob.glob(sys.argv[1]+"*h5")
 
 param_list = []
-for h5file in h5files:
-    param_list.append(get_params(h5file))
+for h,h5file in enumerate(h5files):
+    print "Loading %s (%d of %d)"%(h5file, h+1, len(h5files))
+    try:
+        param_list.append(get_params(h5file))
+    except:
+        print "failed to read %s"%h5file
+        sys.exit()
 
 
 #

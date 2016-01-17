@@ -248,6 +248,7 @@ filename="%s_FF_s1dotLs2dotL-q"%user_tag
 np.savez(filename, a1dotL=a1dotL, a2dotL=a2dotL, mass_ratios=mass_ratios,
         median_matches=median_matches)
 
+sys.exit()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOX PLOTS

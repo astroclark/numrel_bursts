@@ -583,9 +583,8 @@ def snr_calc(htilde, stilde, f_min=30.):
 
     return maxsnr, h_sigmasq, d_sigmasq
 
-def single_ifo_match(params, nrfile=None, skyloc=None, polarization=None,
-        detector_name="H1", mass_bounds=None, rec_data=None, asd=None,
-        delta_t=1./1024, f_min=30.0):
+def single_ifo_match(params, nrfile=None, mass_bounds=None, rec_data=None,
+        asd=None, delta_t=1./1024, f_min=30.0):
     """
     Compute mismatch (1-match) between the tmplt wave and the event wave, given
     the total mass.  Uses rec_data and psd which are defined globally in the
@@ -605,16 +604,9 @@ def single_ifo_match(params, nrfile=None, skyloc=None, polarization=None,
 
         # Generate the polarisations
         try:
-            hp, hc = get_wf_pols(nrfile, mtotal, inclination=inclination, delta_t=delta_t)
+            tmplt, _ = get_wf_pols(nrfile, mtotal, inclination=inclination, delta_t=delta_t)
         except:
             return 0.0, 0.0, 0.0
-
-        if skyloc is None and polarization is None:
-            tmplt = hp
-        else:
-            # Project to detector
-            tmplt = project_waveform(hp, hc, skyloc=skyloc,
-                    polarization=polarization, detector_name=detector_name)
 
         # Put the reconstruction data in a TimeSeries
         rec_data = pycbc.types.TimeSeries(rec_data, delta_t=delta_t)
@@ -628,8 +620,8 @@ def single_ifo_match(params, nrfile=None, skyloc=None, polarization=None,
         Tmplt = tmplt.to_frequencyseries()
         Tmplt.data /= asd
 
+        # Return the overlap time series and normalisations
         maxsnr, tmplt_sigmasq, data_sigmasq = snr_calc(Tmplt, rec_data, f_min=30.)
-
 
         return maxsnr, tmplt_sigmasq, data_sigmasq 
 
@@ -638,9 +630,9 @@ def single_ifo_match(params, nrfile=None, skyloc=None, polarization=None,
 
         return 0.0, 0.0, 0.0
 
-def network_match(params, nrfile=None, skyloc=None, polarization=None,
-        mass_bounds=None, h1_rec_data=None, h1_asd=None, l1_rec_data=None,
-        l1_asd=None, delta_t=1./1024, f_min=30.0):
+def network_match(params, nrfile=None, mass_bounds=None, h1_rec_data=None,
+        h1_asd=None, l1_rec_data=None, l1_asd=None, delta_t=1./1024,
+        f_min=30.0):
     """
     Compute mismatch (1-match) between the tmplt wave and the event wave, given
     the total mass.  Uses rec_data and psd which are defined globally in the
@@ -653,13 +645,11 @@ def network_match(params, nrfile=None, skyloc=None, polarization=None,
     """
 
     h1_max_snr, h1_tmplt_sigmasq, h1_data_sigmasq = single_ifo_match(params,
-            nrfile=nrfile, skyloc=skyloc, polarization=polarization,
-            detector_name="H1", mass_bounds=mass_bounds, rec_data=h1_rec_data,
+            nrfile=nrfile, mass_bounds=mass_bounds, rec_data=h1_rec_data,
             asd=h1_asd, delta_t=delta_t, f_min=f_min)
 
     l1_max_snr, l1_tmplt_sigmasq, l1_data_sigmasq = single_ifo_match(params,
-            nrfile=nrfile, skyloc=skyloc, polarization=polarization,
-            detector_name="L1", mass_bounds=mass_bounds, rec_data=l1_rec_data,
+            nrfile=nrfile, mass_bounds=mass_bounds, rec_data=l1_rec_data,
             asd=l1_asd, delta_t=delta_t, f_min=f_min)
 
     network_match = h1_max_snr + l1_max_snr
@@ -671,12 +661,14 @@ def network_match(params, nrfile=None, skyloc=None, polarization=None,
     else:
         return network_match / norm
 
-def network_mismatch(params, nrfile=None, skyloc=None, polarization=None,
-        mass_bounds=None, h1_rec_data=None, h1_asd=None, l1_rec_data=None,
-        l1_asd=None, delta_t=1./1024, f_min=30.0):
+def network_mismatch(params, nrfile=None, mass_bounds=None, h1_rec_data=None,
+        h1_asd=None, l1_rec_data=None, l1_asd=None, delta_t=1./1024,
+        f_min=30.0):
+    """
+    Scipy optimize wants to minimize a function so use mismatch
+    """
 
-    return 1-network_match(params, nrfile=nrfile, skyloc=skyloc,
-            polarization=polarization, mass_bounds=mass_bounds,
+    return 1-network_match(params, nrfile=nrfile, mass_bounds=mass_bounds,
             h1_rec_data=h1_rec_data, h1_asd=h1_asd, l1_rec_data=l1_rec_data,
             l1_asd=l1_asd, delta_t=delta_t, f_min=f_min)
 
@@ -800,7 +792,6 @@ class configuration:
         self.l1_reconstruction=configparser.get('paths', 'l1_reconstruction')
         self.l1_spectral_estimate=configparser.get('paths', 'l1_spectral-estimate')
         self.catalog=configparser.get('paths', 'catalog')
-        self.extrinsic_params=configparser.get('paths', 'extrinsic-params')
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

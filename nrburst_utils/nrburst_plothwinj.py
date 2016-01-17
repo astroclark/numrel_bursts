@@ -31,9 +31,9 @@ pl.rcParams.update({'xtick.labelsize':16})
 pl.rcParams.update({'ytick.labelsize':16})
 pl.rcParams.update({'legend.fontsize':16})
 
-raw_result=np.load('/home/jclark/GW150914_data/hwinj_dumps/HWINJ.npz')
-bw_result=np.load('/home/jclark/GW150914_data/nrburst_analysis/injection_waveforms_071215/BW.npz')
-cwb_result=np.load('/home/jclark/GW150914_data/nrburst_analysis/cwb_injection_waveforms_071215/CWB.npz')
+raw_result=np.load('/home/jclark308/GW150914_data/hwinj_dumps/HWINJ.npz')
+bw_result=np.load('/home/jclark308/GW150914_data/nrburst_analysis/injection_waveforms_071215/BW.npz')
+cwb_result=np.load('/home/jclark308/GW150914_data/nrburst_analysis/cwb_injection_waveforms_071215/CWB.npz')
 
 labels=['injection data', 'BayesWave', 'CWB']
 
@@ -63,7 +63,8 @@ ax_mtot.set_ylabel('Injected - Recovered Total Mass [M$_{\odot}$]')
 ax_mtot.legend(loc='upper left')
 f_mtot.tight_layout()
 
-f_mtot.savefig('totalmass_fittingfactor.eps')
+f_mtot.savefig('TotalMassError_Match_HWINJ.png')
+f_mtot.savefig('TotalMassError_Match_HWINJ.eps')
 
 #
 # Fitting factor vs Total Mass
@@ -92,7 +93,9 @@ ax_mchirp.set_ylabel('Injected - Recovered Chirp Mass [M$_{\odot}$]')
 ax_mchirp.legend()#loc='center left')
 f_mchirp.tight_layout()
 
-f_mchirp.savefig('chirpmass_fittingfactor.eps')
+f_mtot.savefig('ChirpMassError_Match_HWINJ.png')
+f_mtot.savefig('ChirpMassError_Match_HWINJ.eps')
+
 
 
 
