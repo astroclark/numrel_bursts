@@ -121,6 +121,7 @@ SeffcrossL  = np.zeros(nsimulations_goodmatch)
 theta_a12   = np.zeros(nsimulations_goodmatch)
 SdotL       = np.zeros(nsimulations_goodmatch)
 theta_SdotL = np.zeros(nsimulations_goodmatch)
+chieff      = np.zeros(nsimulations_goodmatch)
 
 for s, sim in enumerate(simulations_goodmatch):
 
@@ -141,9 +142,16 @@ for s, sim in enumerate(simulations_goodmatch):
     SdotL[s] = sim['theta_SdotL']
     theta_SdotL[s] = sim['theta_SdotL']
 
+
     for n in xrange(config.nsampls):
 
         chirp_masses[s,n] = masses[s,n] * sim['eta']**(3./5) 
+
+    mass1, mass2 = \
+            pnutils.mchirp_eta_to_mass1_mass2(np.median(chirp_masses[s,:]),
+                    sim['eta'])
+    chieff[s] = pnutils.phenomb_chi(mass1, mass2, sim['spin1z'],
+            sim['spin2z'])
 
 median_chirp_masses = np.median(chirp_masses, axis=1)
 std_chirp_masses    = np.std(chirp_masses, axis=1)
@@ -208,7 +216,16 @@ print >> sys.stdout, "Plotting..."
 
 mass_ratios = 1./mass_ratios
 
-# XXX: EXPERIMENTAL
+f, ax = nrbu.scatter_plot(
+        config,
+        paramx=chieff, paramy=mass_ratios,
+        matches=median_matches, 
+        labely='q',
+        labelx=r'$\chi_{\mathrm{eff}}$')
+
+pl.show()
+sys.exit()
+
 f, ax = nrbu.double_scatter_plot(
         config,
         param1x=a1dotL, param2x=a2dotL,
