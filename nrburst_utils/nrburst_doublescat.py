@@ -46,7 +46,8 @@ f, ax = nrbu.double_double_scatter_plot(
         label2y=r'$\hat{\mathbf{S}}_2 . \hat{\mathbf{L}}$')
 
 
-pl.show()
+f.savefig('GW150914_FF_s1dotLs2dotL-q.png')
+f.savefig('GW150914_FF_s1dotLs2dotL-q.eps')
 
 # Dump ascii data
 fout = open('nrburst_reconstructionVsNR.txt','w')
