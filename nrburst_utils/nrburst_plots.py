@@ -244,7 +244,6 @@ filename="%s_FF_s1dotLs2dotL-q"%user_tag
 np.savez(filename, a1dotL=a1dotL, a2dotL=a2dotL, mass_ratios=mass_ratios,
         median_matches=median_matches)
 
-sys.exit()
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOX PLOTS
@@ -264,6 +263,7 @@ f.tight_layout()
 f.savefig("%s_FF_ranking.eps"%user_tag)
 f.savefig("%s_FF_ranking.png"%user_tag)
 
+sys.exit()
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Waveform and data plots
 best_simulation = simulations_goodmatch[matchsort][-1]
