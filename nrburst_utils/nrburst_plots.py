@@ -55,15 +55,6 @@ def parser():
     return opts, args
 
 
-__author__ = "James Clark <james.clark@ligo.org>"
-gpsnow = subprocess.check_output(['lalapps_tconvert', 'now']).strip()
-__date__ = subprocess.check_output(['lalapps_tconvert', gpsnow]).strip()
-
-# Get the current git version
-git_version_id = subprocess.check_output(['git', 'rev-parse', 'HEAD'],
-        cwd=os.path.dirname(sys.argv[0])).strip()
-__version__ = "git id %s" % git_version_id
-
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Parse Input
@@ -72,7 +63,7 @@ __version__ = "git id %s" % git_version_id
 
 opts, args = parser()
 
-matches, masses, inclinations, config, simulations, _, _, _ = pickle.load(
+matches, masses, inclinations, config, simulations = pickle.load(
         open(args[0], 'rb'))
 
 
@@ -216,15 +207,20 @@ print >> sys.stdout, "Plotting..."
 
 mass_ratios = 1./mass_ratios
 
-f, ax = nrbu.scatter_plot(
-        config,
-        paramx=chieff, paramy=mass_ratios,
-        matches=median_matches, 
-        labely='q',
-        labelx=r'$\chi_{\mathrm{eff}}$')
+#   f, ax = nrbu.scatter_plot(
+#           config,
+#           paramx=chieff, paramy=mass_ratios,
+#           matches=median_matches, 
+#           labely='q',
+#           labelx=r'$\chi_{\mathrm{eff}}$')
+#
+#pl.show()
+#sys.exit()
 
-pl.show()
-sys.exit()
+if config.algorithm=='BW':
+    clims=[0.5, 1]
+elif config.algorithm=='CWB':
+    clims=[0.5, 0.9]
 
 f, ax = nrbu.double_scatter_plot(
         config,
@@ -233,7 +229,7 @@ f, ax = nrbu.double_scatter_plot(
         matches=median_matches, 
         labely='q',
         label1x=r'$\hat{\mathbf{S}}_1 . \hat{\mathbf{L}}$',
-        label2x=r'$\hat{\mathbf{S}}_2 . \hat{\mathbf{L}}$')
+        label2x=r'$\hat{\mathbf{S}}_2 . \hat{\mathbf{L}}$', clims=clims)
 
 ax[0].annotate('# sims: %d'%len(simulations_goodmatch), (-0.9, 1.1))
 
