@@ -40,7 +40,7 @@ n_sample_runs = sim_instances.count(sim_names[0])
 
 # Load first one to extract data for preallocation
 current_matches, current_masses, current_inclinations, config, \
-        simulations,  = pickle.load(open(pickle_files[0],'r'))
+        simulations  = pickle.load(open(pickle_files[0],'r'))
 
 
 nSims = len(sim_names)
@@ -70,8 +70,7 @@ for f, name in enumerate(sim_names):
 
 
         current_matches, current_masses, current_inclinations, config, \
-                current_simulations, __author__, __version__, __date__ = \
-                pickle.load(open(file,'r'))
+                current_simulations = pickle.load(open(file,'r'))
 
         matches[f,startidx:endidx] = current_matches[0]
         masses[f,startidx:endidx] = current_masses[0]
@@ -84,7 +83,7 @@ for f, name in enumerate(sim_names):
 
 filename=user_tag+'_'+config.algorithm+'.pickle'
 
-pickle.dump([matches, masses, inclinations, config, simulations,
-        __author__, __version__, __date__], open(filename, "wb"))
+pickle.dump([matches, masses, inclinations, config, simulations],
+        open(filename, "wb"))
 
 
