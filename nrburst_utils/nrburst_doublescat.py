@@ -30,10 +30,10 @@ pl.rcParams.update({'xtick.labelsize':16})
 pl.rcParams.update({'ytick.labelsize':16})
 pl.rcParams.update({'legend.fontsize':16})
 
-bw_path='GW150914_data/nrburst_analysis/GW150914BWNR_071215/GW150914_BW_FF_s1dotLs2dotL-q.npz'
+bw_path='GW150914_production/BayesWave/GW150914/GW150914_BW_FF_s1dotLs2dotL-q.npz'
 bw_results=np.load(os.path.join(os.environ.get('HOME'), bw_path))
 
-cwb_path='GW150914_data/nrburst_analysis/GW150914CWBNR_071215/GW150914_CWB_FF_s1dotLs2dotL-q.npz'
+cwb_path='GW150914_production/CWB/GW150914/GW150914_CWB_FF_s1dotLs2dotL-q.npz'
 cwb_results=np.load(os.path.join(os.environ.get('HOME'), cwb_path))
 
 f, ax = nrbu.double_double_scatter_plot(
