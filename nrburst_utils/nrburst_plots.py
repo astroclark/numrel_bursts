@@ -248,7 +248,7 @@ np.savez(filename, a1dotL=a1dotL, a2dotL=a2dotL, mass_ratios=mass_ratios,
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOX PLOTS
 
-Nwaves=50
+Nwaves=25
 if config.algorithm=='BW':
     f, ax = nrbu.matchboxes(matches, simulations_goodmatch, Nwaves)
 elif config.algorithm=='CWB':
