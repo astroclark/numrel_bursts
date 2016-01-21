@@ -217,7 +217,7 @@ mass_ratios = 1./mass_ratios
 #pl.show()
 #sys.exit()
 
-if config.algorithm=='BW':
+if config.algorithm=='BW' or config.algorithm=='HWINJ':
     clims=[0.5, 1]
 elif config.algorithm=='CWB':
     clims=[0.5, 0.9]
