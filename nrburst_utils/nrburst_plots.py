@@ -217,7 +217,7 @@ mass_ratios = 1./mass_ratios
 #pl.show()
 #sys.exit()
 
-if config.algorithm=='BW':
+if config.algorithm=='BW' or config.algorithm=='HWINJ':
     clims=[0.5, 1]
 elif config.algorithm=='CWB':
     clims=[0.5, 0.9]
@@ -248,7 +248,7 @@ np.savez(filename, a1dotL=a1dotL, a2dotL=a2dotL, mass_ratios=mass_ratios,
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BOX PLOTS
 
-Nwaves=50
+Nwaves=25
 if config.algorithm=='BW':
     f, ax = nrbu.matchboxes(matches, simulations_goodmatch, Nwaves)
 elif config.algorithm=='CWB':
