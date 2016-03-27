@@ -11,6 +11,6 @@ test -d "${REPO_PREFIX}/etc" || mkdir "${REPO_PREFIX}/etc"
 
 
 echo "# add script directory to path" > "${REPO_PREFIX}/etc/nrburst-user-env.sh"
-echo "export PATH=$REPO_PREFIX/nrburst_utils:\$PATH" >> "${REPO_PREFIX}/etc/nrburst-user-env.sh"
-echo "export PYTHONPATH=$REPO_PREFIX/nrburst_utils:$REPO_PREFIX:\${PYTHONPATH}" >> "${REPO_PREFIX}/etc/nrburst-user-env.sh"
+echo "export PATH=$REPO_PREFIX/nrburst_utils:$REPO_PREFIX/pca_utils:\$PATH" >> "${REPO_PREFIX}/etc/nrburst-user-env.sh"
+echo "export PYTHONPATH=$REPO_PREFIX/nrburst_utils:$REPO_PREFIX/pca_utils:$REPO_PREFIX:\${PYTHONPATH}" >> "${REPO_PREFIX}/etc/nrburst-user-env.sh"
 
