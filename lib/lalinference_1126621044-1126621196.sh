@@ -1,0 +1,3 @@
+# Job 210718a9d93c828fcc9294480e2301f9
+lalinference_burst --L1-flow 30 --psdlength 77.0 --inj GaTechIMBBH.xml --V1-cache LALSimAdVirgo --nlive 1024 --V1-timeslide 0 --srate 2048 --event 0 --seglen 4 --L1-channel LALSimAdLIGO --H1-timeslide 0 --trigtime 1126621184 --inj-numreldata GT0901.h5 --psdstart 1126621094.0 --H1-cache LALSimAdLIGO --progress  --L1-timeslide 0 --H1-flow 30 --V1-channel LALSimAdVirgo --resume  --V1-flow 30 --outfile lalinferencenest-0-V1H1L1-1126621184.0-0.dat --L1-cache LALSimAdLIGO --randomseed 1258026004 --dataseed 1234 --H1-channel LALSimAdLIGO --ifo V1  --ifo H1  --ifo L1   
+
