@@ -1,0 +1,3 @@
+# Job c9218224fe79e24d5094328cddbf50fd
+/home/jclark308/opt/lscsoft/lalsuite_master/bin/lalinference_nest --L1-flow 30 --psdlength 77.0 --inj GaTechIMBBH.xml --V1-cache LALSimAdVirgo --nlive 1024 --V1-timeslide 0 --srate 512 --event 0 --seglen 4 --L1-channel LALSimAdLIGO --H1-timeslide 0 --trigtime 1126621184 --inj-numreldata /home/jclark308/lvc_nr/GaTech/GT0901.h5 --psdstart 1126621094.0 --H1-cache LALSimAdLIGO --progress  --L1-timeslide 0 --H1-flow 30 --V1-channel LALSimAdVirgo --resume  --V1-flow 30 --outfile lalinferencenest-0-V1H1L1-1126621184.0-0.dat --L1-cache LALSimAdLIGO --randomseed 1718880682 --dataseed 1234 --H1-channel LALSimAdLIGO --ifo V1  --ifo H1  --ifo L1   
+
