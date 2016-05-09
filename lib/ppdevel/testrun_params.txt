@@ -1,0 +1,1 @@
+H1_cplx_snr_amp	H1_cplx_snr_arg	H1_optimal_snr	L1_cplx_snr_amp	L1_cplx_snr_arg	L1_optimal_snr	LAL_APPROXIMANT	USING_FAST_SGF	amp_beta1	amp_beta2	amp_beta3	dec	deltalogL	deltaloglH1	deltaloglL1	logL	logPrior	loghrss	logw	matched_filter_snr	mtotal	mtotal_ref	optimal_snr	phi_orb	phase_beta1	phase_beta2	phase_beta3	alpha	psi	ra	signalModelFlag	theta_jn	time	
