@@ -130,7 +130,8 @@ def main(opts,args):
                 inclination=sim.inclination, delta_t=1./1024, f_lower=30,
                 distance=sim.distance)
 
-        h1_signal = nrbu.project_waveform(
+        h1_signal = nrbu.project_waveform(hp, hc, skyloc=(sim.latitude,
+            sim.longitude),polarization=sim.polarization, detector_name="H1")
 #
 #
 #       sys.exit()
