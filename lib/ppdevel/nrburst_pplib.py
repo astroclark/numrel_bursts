@@ -132,22 +132,13 @@ def main(opts,args):
 
         h1_signal = nrbu.project_waveform(hp, hc, skyloc=(sim.latitude,
             sim.longitude),polarization=sim.polarization, detector_name="H1")
-#
-#
-#       sys.exit()
-#
-#
-#       # Injection set object with details (and methods) for injections
-#       injSet = pycbc.inject.InjectionSet(opts.sim_inspiral)
-#
-#       h1_epoch = sim.h_end_time + 1e-9*sim.h_end_time_ns \
-#               -0.5*opts.datalen
-#       h1_injection = pycbc.types.TimeSeries(
-#               np.zeros(opts.datalen/opts.delta_t),
-#               delta_t=opts.delta_t, epoch=h1_epoch
-#               )
-#       h1_injection = injSet.apply(h1_injection, 'H1')
+        l1_signal = nrbu.project_waveform(hp, hc, skyloc=(sim.latitude,
+            sim.longitude),polarization=sim.polarization, detector_name="L1")
 
+
+    #
+    # Load the PCs
+    #
 
 
     #
@@ -157,14 +148,14 @@ def main(opts,args):
     resultsObj = peparser.parse(open(args[0], 'r'))
     posterior = bppu.Posterior(resultsObj)
 
-    return posterior, sim
+    return posterior, sim, h1_signal
 
 
 if __name__ == "__main__":
 
     opts, args = parser()
 
-    posterior, sim = main(opts,args)
+    posterior, sim, h1_signal = main(opts,args)
 
 
 
