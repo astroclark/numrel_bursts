@@ -38,7 +38,7 @@ bounds['a1'] = [-0.99, 0.01]
 bounds['a2'] = [-0.99, 0.01]
 
 noise_file = \
-        '/home/jclark/Projects/bhextractor/data/noise_curves/early_aligo.dat'
+        '/home/jclark308/Projects/bhextractor/data/noise_curves/early_aligo.dat'
 
 #
 # --- Generate initial catalog
@@ -50,7 +50,7 @@ then = timeit.time.time()
 
 # Select simulations
 simulations = nrbu.simulation_details(param_bounds=bounds,
-        catdir='/data/lvc_nr/GaTech')
+        catdir='/home/jclark308/lvc_nr/GaTech')
 
 # Build catalog from HDF5
 catalog = nrbu_pca.catalog(simulations)

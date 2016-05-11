@@ -116,6 +116,7 @@ class bbh_pca:
                 hplus_rec = \
                         pycbc.types.TimeSeries(np.real(recamp*np.exp(1j*recphase)),
                                 delta_t=self.delta_t)
+
                 plus_match , _ = pycbc.filter.match(hplus, hplus_rec,
                         low_frequency_cutoff=30.0, psd=self.noise_psd)
 
@@ -244,6 +245,7 @@ def perform_pca(amplitudes, phases):
 
 
 def build_catalog(simulations, mtotal=100.0, nTsamples=1024, delta_t=1./1024):
+
     """
     Build the data matrix.
     """
@@ -254,13 +256,13 @@ def build_catalog(simulations, mtotal=100.0, nTsamples=1024, delta_t=1./1024):
     phase_cat = np.zeros(shape=(simulations.nsimulations, nTsamples))
 
     for s, sim in enumerate(simulations.simulations):
-
+        
         print "Adding {0} to catalog ({1} of {2})".format(sim['wavefile'], s,
                 simulations.nsimulations)
 
         # Extract waveform
-        hp, hc = nrbu.get_wf_pols(sim['wavefile'], mtotal, inclination=0.0,
-                delta_t=delta_t, f_lower=30, distance=100)
+        hp, hc = nrbu.get_wf_pols(sim['wavefile'], mtotal=mtotal,
+                inclination=0.0, delta_t=delta_t, f_lower=30, distance=100)
 
         amp = wfutils.amplitude_from_polarizations(hp, hc)
         phase = wfutils.phase_from_polarizations(hp, hc) 
@@ -276,21 +278,21 @@ def build_catalog(simulations, mtotal=100.0, nTsamples=1024, delta_t=1./1024):
         # small-number junk
 
         ampthresh=1e-2
- 
+        
         # After ringdown:
         amptmp = np.copy(amp.data)
         amptmp[:peakidx] = 1e10
         postmerger = np.argwhere(amptmp < ampthresh*max(amp.data))[0]
- 
+        
         win = lal.CreateTukeyREAL8Window(int(len(phase)-postmerger), 0.1)
         window = 1-win.data.data
         window[0.5*len(window):]=0.0
         phase.data[postmerger:] *= window
         amp.data[postmerger:] *= window
- 
+        
         # before waveform:
         premerger = np.argwhere(amp>ampthresh*max(amp.data))[0]
- 
+        
         win = lal.CreateTukeyREAL8Window(int(len(phase)-premerger), 0.1)
 
         window = win.data.data
@@ -313,12 +315,12 @@ def build_catalog(simulations, mtotal=100.0, nTsamples=1024, delta_t=1./1024):
         phase_cat[s, start:end] = np.copy(phase.data[:peakidx])
 
 
-    return (amp_cat, phase_cat)
+        return (amp_cat, phase_cat)
 
-def main():
-    print >> sys.stdout, sys.argv[0]
-    print >> sys.stdout, __version__
-    print >> sys.stdout, __date__
-    return 0
+    def main():
+        print >> sys.stdout, sys.argv[0]
+        print >> sys.stdout, __version__
+        print >> sys.stdout, __date__
+        return 0
 
 
