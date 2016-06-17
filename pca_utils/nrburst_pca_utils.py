@@ -40,18 +40,21 @@ class catalog:
     Contains attributes of catalog and numpy arrays with feature aligned
     waveforms
     """
-    def __init__(self, simulations):
+    def __init__(self, simulations, mtotal=100.0, nTsamples=1024,
+            delta_t=1./1024, noise_file=None):
 
         print "Building catalogue"
         self.simulations = simulations
-        self.amplitude_matrix, self.phase_matrix = build_catalog(simulations)
+        self.amplitude_matrix, self.phase_matrix = build_catalog(simulations,
+                mtotal=mtotal, noise_file=noise_file, nTsamples=nTsamples,
+                delta_t=delta_t)
 
 class bbh_pca:
     """
     Contains the PCA decomposition of an aligned catalog
     """
 
-    def __init__(self, catalog, delta_t=1./1024, noise_file=None):
+    def __init__(self, catalog, delta_t=1./1024):
 
         self.delta_t = delta_t
         #
@@ -73,20 +76,6 @@ class bbh_pca:
         self.phase_euclidean_distance = np.zeros(shape=(nsims,nsims))
         self.matches = np.zeros(shape=(nsims,nsims), dtype=complex)
 
-        if noise_file is not None:
-
-            # Load an asd from file
-
-            tmp = pycbc.types.TimeSeries(catalog.amplitude_matrix[0,:],
-                    delta_t=delta_t)
-            delta_f = tmp.to_frequencyseries().delta_f
-            sample_frequencies = tmp.to_frequencyseries().sample_frequencies
-
-            noise_data = np.loadtxt(noise_file)
-            noise_asd = np.exp(np.interp(sample_frequencies, noise_data[:,0],
-                np.log(noise_data[:,1])))
-
-            self.noise_psd = pycbc.types.FrequencySeries(noise_asd**2, delta_f=delta_f)
 
         for w in xrange(nsims):
 
@@ -118,7 +107,7 @@ class bbh_pca:
                                 delta_t=self.delta_t)
 
                 plus_match , _ = pycbc.filter.match(hplus, hplus_rec,
-                        low_frequency_cutoff=30.0, psd=self.noise_psd)
+                        low_frequency_cutoff=30.0, psd=None)
 
                 # Compute match with hcross
                 hcross = pycbc.types.TimeSeries(np.imag(catalog.amplitude_matrix[w,:] *
@@ -127,7 +116,7 @@ class bbh_pca:
                         pycbc.types.TimeSeries(np.imag(recamp*np.exp(1j*recphase)),
                                 delta_t=self.delta_t)
                 cross_match , _ = pycbc.filter.match(hcross, hcross_rec,
-                        low_frequency_cutoff=30.0, psd=self.noise_psd)
+                        low_frequency_cutoff=30.0, psd=None)
 
 
                 self.matches[w,n] = plus_match + 1j*cross_match
@@ -244,7 +233,8 @@ def perform_pca(amplitudes, phases):
 
 
 
-def build_catalog(simulations, mtotal=100.0, nTsamples=1024, delta_t=1./1024):
+def build_catalog(simulations, mtotal=100.0, nTsamples=1024, delta_t=1./1024,
+        noise_file=None):
 
     """
     Build the data matrix.
@@ -261,8 +251,44 @@ def build_catalog(simulations, mtotal=100.0, nTsamples=1024, delta_t=1./1024):
                 simulations.nsimulations)
 
         # Extract waveform
-        hp, hc = nrbu.get_wf_pols(sim['wavefile'], mtotal=mtotal,
+        hpRaw, hcRaw = nrbu.get_wf_pols(sim['wavefile'], mtotal=mtotal,
                 inclination=0.0, delta_t=delta_t, f_lower=30, distance=100)
+        #hp, hc = nrbu.get_wf_pols(sim['wavefile'], mtotal=mtotal,
+        #        inclination=0.0, delta_t=delta_t, f_lower=30, distance=100)
+
+        # zero-pad
+        hp = pycbc.types.TimeSeries(np.zeros(nTsamples), delta_t=hpRaw.delta_t)
+        hc = pycbc.types.TimeSeries(np.zeros(nTsamples), delta_t=hcRaw.delta_t)
+
+        hp.data[:len(hpRaw)]=np.copy(hpRaw.data)
+        hc.data[:len(hcRaw)]=np.copy(hcRaw.data)
+
+
+        # Highpass
+        #hp = pycbc.filter.highpass(hp, 30.0)
+        #hc = pycbc.filter.highpass(hc, 30.0)
+
+
+        # Whiten
+        if noise_file is not None:
+
+            Hp = hp.to_frequencyseries()
+            Hc = hc.to_frequencyseries()
+
+            noise_data = np.loadtxt(noise_file)
+            noise_asd = np.exp(np.interp(Hp.sample_frequencies, noise_data[:,0],
+                np.log(noise_data[:,1])))
+
+
+            print 'whitening'
+            Hp.data /= noise_asd
+            Hc.data /= noise_asd
+
+            hp = Hp.to_timeseries()
+            hc = Hc.to_timeseries()
+
+        hp = pycbc.types.TimeSeries(hp[:len(hpRaw)],delta_t=hp.delta_t)
+        hc = pycbc.types.TimeSeries(hc[:len(hcRaw)],delta_t=hc.delta_t)
 
         amp = wfutils.amplitude_from_polarizations(hp, hc)
         phase = wfutils.phase_from_polarizations(hp, hc) 
@@ -291,15 +317,24 @@ def build_catalog(simulations, mtotal=100.0, nTsamples=1024, delta_t=1./1024):
         amp.data[postmerger:] *= window
         
         # before waveform:
-        premerger = np.argwhere(amp>ampthresh*max(amp.data))[0]
-        
-        win = lal.CreateTukeyREAL8Window(int(len(phase)-premerger), 0.1)
+        # XXX: careful with this - we just want to smooth out junk, but we
+        # don't really want to artificially truncate the waveforms in-band
 
-        window = win.data.data
-        window[0.5*len(window):]=1.0
+#       premerger = np.argwhere(amp>ampthresh*max(amp.data))[0]
+#       
+#       win = lal.CreateTukeyREAL8Window(int(len(phase)-premerger), 0.1)
+#
+#       window = win.data.data
+#       window[0.5*len(window):]=1.0
 
-        phase.data *= window
-        amp.data *= window
+        #phase.data *= window
+        #amp.data *= window
+
+#       from matplotlib import pyplot as pl
+#       pl.figure()
+#       pl.plot(amp)
+#       pl.show()
+#       sys.exit()
         
         # POPULATE
         # right
@@ -315,7 +350,7 @@ def build_catalog(simulations, mtotal=100.0, nTsamples=1024, delta_t=1./1024):
         phase_cat[s, start:end] = np.copy(phase.data[:peakidx])
 
 
-        return (amp_cat, phase_cat)
+    return (amp_cat, phase_cat)
 
     def main():
         print >> sys.stdout, sys.argv[0]
