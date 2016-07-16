@@ -32,14 +32,14 @@ import tarfile
 # Input
 #
 
-tarballs = glob.glob(sys.argv[1])
+tarballs = glob.glob('bayeswave_*bz2')
 
-outfile = sys.argv[2]+'.pickle'
+outfile = os.path.basename(os.getcwd())+'.pickle'
 
 results=[]
-for tarball in tarballs:
+for t,tarball in enumerate(tarballs):
 
-    print "Extracting from %s"%tarball
+    print "Extracting from %s [%d/%d]"%(tarball, t, len(tarballs))
 
     tar = tarfile.open(tarball, 'r:bz2')
 
