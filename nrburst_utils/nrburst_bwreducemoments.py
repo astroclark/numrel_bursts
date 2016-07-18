@@ -55,8 +55,8 @@ def whiten(wave, asdarray, delta_t=1./1024):
 # Input
 #
 
-if len(sys.argv)>=2:
-    injfile=sys.argv[1]
+if len(sys.argv)>=3:
+    injfile=sys.argv[2]
     print "loading data from %s"%injfile
 
     statinfo = os.stat(injfile)
@@ -68,6 +68,12 @@ if len(sys.argv)>=2:
     print "results took %dm, %ds to load"%(divmod(now-then,60))
 else:
     print "Using data in environment"
+
+fmin=int(sys.argv[1])
+print "Using fmin=%d for overlaps"%fmin
+
+outname = injfile.replace('.pickle','') + '-fmin_%d'%fmin
+print "Dumping moments to %s"%outname
 
 #
 # Allocation
@@ -120,17 +126,17 @@ for i in xrange(len(injset)):
         IFO1_whitened_injection = whiten(L1_timeInjection[:,1], IFO1_ASD)
 
 
-        ri =  overlap(IFO0_whitened_signal[j], IFO0_whitened_injection, fmin=16,
-                norm=False) + overlap(IFO1_whitened_signal[j],
-                        IFO1_whitened_injection, fmin=16, norm=False)
+        ri =  overlap(IFO0_whitened_signal[j], IFO0_whitened_injection,
+                fmin=fmin, norm=False) + overlap(IFO1_whitened_signal[j],
+                        IFO1_whitened_injection, fmin=fmin, norm=False)
 
-        ii =  overlap(IFO0_whitened_injection, IFO0_whitened_injection, fmin=16,
-                norm=False) + overlap(IFO1_whitened_injection,
-                        IFO1_whitened_injection, fmin=16, norm=False)
+        ii =  overlap(IFO0_whitened_injection, IFO0_whitened_injection,
+                fmin=fmin, norm=False) + overlap(IFO1_whitened_injection,
+                        IFO1_whitened_injection, fmin=fmin, norm=False)
 
-        rr =  overlap(IFO0_whitened_signal[j], IFO0_whitened_signal[j], fmin=16,
-                norm=False) + overlap(IFO1_whitened_signal[j],
-                        IFO1_whitened_signal[j], fmin=16, norm=False)
+        rr =  overlap(IFO0_whitened_signal[j], IFO0_whitened_signal[j],
+                fmin=fmin, norm=False) + overlap(IFO1_whitened_signal[j],
+                        IFO1_whitened_signal[j], fmin=fmin, norm=False)
 
         mynetoverlaps[i,j] = ri / np.sqrt(ii*rr)
 
@@ -144,7 +150,7 @@ std_overlap = np.array([np.std(netoverlaps[i]) for i in xrange(len(injset))])
 # Now clean up and save workspace
 #
 # This gives us almost all the characteristics we need to compare injection sets
-np.savez(file=injfile.replace('.pickle',''), 
+np.savez(file=outname, 
         netoverlaps    = netoverlaps,
         mynetoverlaps  = mynetoverlaps,
         netsnr         = netsnr,
