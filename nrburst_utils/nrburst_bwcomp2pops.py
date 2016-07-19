@@ -61,12 +61,20 @@ for i,injfile in enumerate(injfiles):
 
 # --- Overlap distributions
 f, ax = pl.subplots()
-medianoverlaps = np.zeros(len(injfiles))
+medianoverlaps = []
 for i in xrange(len(injfiles)):
-    medianoverlaps = np.median(results[i]['mynetoverlaps'], axis=1)
-    ax.hist(medianoverlaps, normed=True, histtype='step', cumulative=True,
+    medianoverlaps.append(np.median(results[i]['mynetoverlaps'], axis=1))
+    ax.hist(medianoverlaps[i], normed=True, histtype='step', cumulative=True,
             bins=100)
-ax.set_title('Median overlaps across injection populations')
+
+# Get p-value for KS test between first two distributions
+if len(injfiles)==2:
+    from scipy import stats
+    _, p=stats.ks_2samp(medianoverlaps[0],medianoverlaps[1])
+    ax.set_title('KS-test p-value: %.2f'%p)
+else:
+    ax.set_title('Median overlaps across injection populations')
+
 ax.axhline(0.5, color='k', linewidth=2, linestyle='--', label='Median overlap')
 ax.minorticks_on()
 ax.set_ylim(0,1)
