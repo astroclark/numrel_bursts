@@ -56,7 +56,7 @@ do
     echo ${workdir}
 
     echo '
-    JOB '${workdir}'
+    JOB '${workdir}' '${subfile}'
     RETRY '${workdir}' 0
     VARS '${workdir}' macroworkdir="'${workdir}'"
 
