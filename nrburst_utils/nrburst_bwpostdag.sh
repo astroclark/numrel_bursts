@@ -43,9 +43,9 @@ universe   = vanilla
 getenv=True
 
 arguments  = $(macroworkdir)
-output     = '${logdir}'/$(workdir).out
-error      = '${logdir}'/$(workdir).err
-log        = '${logdir}'/$(workdir).log
+output     = '${logdir}'/$(macroworkdir).out
+error      = '${logdir}'/$(macroworkdir).err
+log        = '${logdir}'/$(macroworkdir).log
 queue 1
 
 ' > ${subfile}
