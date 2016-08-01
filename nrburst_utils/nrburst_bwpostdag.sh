@@ -15,17 +15,23 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
-# bw_match_sub.sh
+# nrburst_bwpostsub.sh
+#
+# USAGE: nrburst_bwpostsub.sh <injdir> <sub-file>
 #
 # Write a trivial condor submission file to speed up BW match calculations
 
 executable="${HOME}/Projects/numrel_bursts/nrburst_utils/nrburst_bwpost.sh"
 log_dir="condor_logs"
 
-usertag=${1}
-subfile=${usertag}.sub
+workdir_globpattern=${1}
+subfile=${2}.sub
+dagfile=${2}.dag
+logdir=${2}_logs
 
-test ! -d ${log_dir} && mkdir -p ${log_dir}
+test ! -d ${logdir} && mkdir -p ${logdir}
+test ! ${dagfile} && rm ${dagfile}
+test ! ${subfile} && rm ${subfile}
 
 echo '
 ######################
@@ -35,18 +41,29 @@ echo '
 executable = '${executable}'
 universe   = vanilla 
 getenv=True
+
+arguments  = $(macroworkdir)
+output     = '${logdir}'/$(workdir).out
+error      = '${logdir}'/$(workdir).err
+log        = '${logdir}'/$(workdir).log
+queue 1
+
 ' > ${subfile}
 
-for injrun in injruns
+for workdir in ${workdir_globpattern}*
 do
-    echo '
 
-    arguments  = '${injrun}'
-    output     = condor_logs/'${injrun}'.out
-    error      = condor_logs/'${injrun}'.err
-    log        = condor_logs/'${injrun}'.log
-    queue 1
-    ' >> ${subfile}
+    echo ${workdir}
+
+    echo '
+    JOB '${workdir}'
+    RETRY '${workdir}' 0
+    VARS '${workdir}' macroworkdir="'${workdir}'"
+
+    ' >> ${dagfile}
+
+
 
 done
 
+#python -c "import uuid; print uuid.uuid4()"
