@@ -136,7 +136,11 @@ outfile = os.path.basename(os.getcwd())
 
 nmoments=10000
 nreconstructions=100
+moments_header="snr t_energy_rec hrss t0_rec dur_rec f0_rec band_rec overlap network_overlap h_max t_at_h_max"
+moments_names=moments_header.split()
 
+h1overlaps = np.zeros(shape=(ninj, nmoments))
+l1overlaps = np.zeros(shape=(ninj, nmoments))
 netoverlaps = np.zeros(shape=(ninj, nmoments))
 # XXX: modify mynetoverlaps for multiple fmin
 fmin=16.0
@@ -164,34 +168,39 @@ for t,tarball in enumerate(tarballs):
 
     try:
         evidence=extract(parent_directory, 'evidence.dat')
-        snr = extract(parent_directory, 'snr.txt')
-
-        IFO0_signal_moments = extract(parent_directory,
-                'post/signal_whitened_moments.dat.0')
-        IFO1_signal_moments = extract(parent_directory,
-                'post/signal_whitened_moments.dat.1')
-        IFO0_whitened_signal = extract(parent_directory,
-                'post/signal_recovered_whitened_waveform.dat.0')
-        IFO1_whitened_signal = extract(parent_directory,
-                'post/signal_recovered_whitened_waveform.dat.1')
-
-        IFO0_whitened_injection = extract(parent_directory,
-                'post/injected_whitened_waveform.dat.0')
-        IFO1_whitened_injection = extract(parent_directory,
-                'post/injected_whitened_waveform.dat.1')
     except:
-        continue
+        print >> sys.stderr, "No evidence.dat"
+        evidence = np.nan
 
-#   H1_timeInjection = extract(parent_directory, 'H1_timeInjection.dat')
-#   L1_timeInjection = extract(parent_directory, 'L1_timeInjection.dat')
-#   IFO0_ASD = extract(parent_directory, 'IFO0_asd.dat')
-#   IFO1_ASD = extract(parent_directory, 'IFO1_asd.dat')
+    try:
+        snr = extract(parent_directory, 'snr.txt')
+    except:
+        print >> sys.stderr, "No snr.txt"
+        snr = [['H1',np.nan], ['L1',np.nan], ['Network', np.nan]]
+
+    IFO0_signal_moments = extract(parent_directory,
+            'post/signal_whitened_moments.dat.0')
+    IFO1_signal_moments = extract(parent_directory,
+            'post/signal_whitened_moments.dat.1')
+    IFO0_whitened_signal = extract(parent_directory,
+            'post/signal_recovered_whitened_waveform.dat.0')
+    IFO1_whitened_signal = extract(parent_directory,
+            'post/signal_recovered_whitened_waveform.dat.1')
+
+    IFO0_whitened_injection = extract(parent_directory,
+            'post/injected_whitened_waveform.dat.0')
+    IFO1_whitened_injection = extract(parent_directory,
+            'post/injected_whitened_waveform.dat.1')
+
+    H1_timeInjection = extract(parent_directory, 'H1_timeInjection.dat')
+    L1_timeInjection = extract(parent_directory, 'L1_timeInjection.dat')
+    IFO0_ASD = extract(parent_directory, 'IFO0_asd.dat')
+    IFO1_ASD = extract(parent_directory, 'IFO1_asd.dat')
 #
 #
-#   my_IFO0_whitened_injection = whiten(H1_timeInjection[:,1], IFO0_ASD)
-#   my_IFO1_whitened_injection = whiten(L1_timeInjection[:,1], IFO1_ASD)
+    my_IFO0_whitened_injection = whiten(H1_timeInjection[:,1], IFO0_ASD)
+    my_IFO1_whitened_injection = whiten(L1_timeInjection[:,1], IFO1_ASD)
 
-    #sys.exit()
 
     #
     # Injected SNR
@@ -210,7 +219,9 @@ for t,tarball in enumerate(tarballs):
     #
     # Overlaps
     #
-    netoverlaps[t,:] = [IFO1_signal_moments[j][-3] for j in xrange(nmoments)]
+    h1overlaps[t,:] = [IFO0_signal_moments[j][moments_names.index("overlap")] for j in xrange(nmoments)]
+    l1overlaps[t,:] = [IFO1_signal_moments[j][moments_names.index("overlap")] for j in xrange(nmoments)]
+    netoverlaps[t,:] = [IFO1_signal_moments[j][moments_names.index("network_overlap")] for j in xrange(nmoments)]
 
     #
     # Manual calculation of network overlap (to facilitate different fmin)
@@ -248,7 +259,11 @@ for t,tarball in enumerate(tarballs):
 # This gives us almost all the characteristics we need to compare injection sets
 np.savez(file=outfile, 
         netoverlaps    = netoverlaps,
+        h1overlaps     = h1overlaps,
+        l1overlaps     = l1overlaps,
         mynetoverlaps  = mynetoverlaps,
+        myh1overlaps   = myh1overlaps,
+        myl1overlaps   = myl1overlaps,
         netsnr         = netsnr,
         h1snr          = h1snr,
         l1snr          = l1snr,
